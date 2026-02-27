@@ -4,4 +4,5 @@
 
 rootProject.name = "adl"
 
+include("adl-kotlin-runner")
 include("adl-server")
