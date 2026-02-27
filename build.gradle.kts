@@ -14,7 +14,7 @@ group = "org.eclipse.lmos"
 version = project.findProperty("version") as String
 
 plugins {
-    kotlin("jvm") version "2.2.21" apply false
+    kotlin("jvm") version "2.3.10" apply false
     kotlin("plugin.serialization") version "2.2.21" apply false
     id("org.jetbrains.dokka") version "2.0.0"
     id("org.cyclonedx.bom") version "2.3.1"
@@ -35,7 +35,7 @@ subprojects {
     apply(plugin = "com.vanniktech.maven.publish")
 
     java {
-        sourceCompatibility = JavaVersion.VERSION_21
+        sourceCompatibility = JavaVersion.VERSION_24
     }
 
     // currently ktlint has issues with context parameters.
@@ -48,14 +48,14 @@ subprojects {
     tasks.withType<KotlinJvmCompile>().configureEach {
         compilerOptions {
             freeCompilerArgs.addAll(listOf("-Xcontext-parameters", "-Xjsr305=strict"))
-            jvmTarget = JvmTarget.fromTarget("21")
+            jvmTarget = JvmTarget.fromTarget("24")
         }
     }
 
     // Needed for gradle 9
-    // tasks.withType<AbstractTestTask>().configureEach {
-    //    failOnNoDiscoveredTests = false
-    // }
+    tasks.withType<AbstractTestTask>().configureEach {
+        failOnNoDiscoveredTests = false
+    }
 
     tasks.withType<Test> {
         useJUnitPlatform()
