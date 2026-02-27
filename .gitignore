@@ -57,3 +57,5 @@ bin/
 /docs-src/.docusaurus/
 .idea/
 /adl-server/qdrant_storage/
+/.gradle/
+/.gradle/

@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory
 /**
  * An [AgentOutputFilter] that extracts "MUST" instructions from processed use cases and verifies compliance.
  */
-class MustFeature(private val retryMax: Int = 3) : AgentOutputFilter {
+class MustFeature(private val keyword: String = "MUST", private val retryMax: Int = 3) : AgentOutputFilter {
 
     private val log = LoggerFactory.getLogger(this::class.java)
 
@@ -34,7 +34,7 @@ class MustFeature(private val retryMax: Int = 3) : AgentOutputFilter {
         val mustInstructions = processedUseCasesText
             .substringAfter("## Solution", "") // Get text after "## Solution"
             .split(Regex("(?<=[.!?])\\s+")) // Split into sentences
-            .filter { it.contains(Regex("\\bMUST\\b")) } // Match whole word "MUST"
+            .filter { it.contains(Regex("\\b$keyword\\b")) } // Match whole word "MUST"
             .map { it.trim() }
 
         if (mustInstructions.isEmpty()) {
