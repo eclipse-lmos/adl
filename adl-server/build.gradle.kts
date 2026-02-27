@@ -96,18 +96,17 @@ dependencies {
     val arcVersion = "0.213.0"
 
     // Arc
-    api("org.eclipse.lmos:arc-scripting:$arcVersion")
-    api("org.eclipse.lmos:arc-azure-client:$arcVersion")
-    api("org.eclipse.lmos:arc-spring-boot-starter:$arcVersion")
-    api("org.eclipse.lmos:arc-api:$arcVersion")
-    api("org.eclipse.lmos:arc-agents:$arcVersion")
-    api("org.eclipse.lmos:arc-result:$arcVersion")
-    api("org.eclipse.lmos:arc-graphql-spring-boot-starter:$arcVersion")
-    api("org.eclipse.lmos:arc-assistants:$arcVersion")
-    api("org.eclipse.lmos:arc-readers:$arcVersion")
-    api("org.eclipse.lmos:arc-memory-redis:$arcVersion")
-
-    implementation(project(":adl-kotlin-runner"))
+    implementation("org.eclipse.lmos:arc-scripting:$arcVersion")
+    implementation("org.eclipse.lmos:arc-azure-client:$arcVersion")
+    implementation("org.eclipse.lmos:arc-spring-boot-starter:$arcVersion")
+    implementation("org.eclipse.lmos:arc-api:$arcVersion")
+    implementation("org.eclipse.lmos:arc-agents:$arcVersion")
+    implementation("org.eclipse.lmos:arc-result:$arcVersion")
+    implementation("org.eclipse.lmos:arc-graphql-spring-boot-starter:$arcVersion")
+    implementation("org.eclipse.lmos:arc-assistants:$arcVersion")
+    implementation("org.eclipse.lmos:arc-readers:$arcVersion")
+    implementation("org.eclipse.lmos:arc-memory-redis:$arcVersion")
+    implementation("org.eclipse.lmos:adl-kotlin-runner:$arcVersion")
 
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
