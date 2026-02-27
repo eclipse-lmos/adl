@@ -4,7 +4,7 @@
 
 plugins {
     alias(libs.plugins.ktor)
-    id("sh.ondr.koja") version "0.4.6"
+    id("sh.ondr.koja") version "0.4.8"
     id("org.graalvm.buildtools.native") version "0.11.3"
 }
 
@@ -121,7 +121,6 @@ dependencies {
     implementation(libs.logback.classic)
 
     // LLM Clients
-    implementation(project(":arc-azure-client"))
     // implementation("dev.langchain4j:langchain4j-ollama:1.8.0")
 
     // Mutsache
