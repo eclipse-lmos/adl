@@ -1,0 +1,165 @@
+// SPDX-FileCopyrightText: 2025 Deutsche Telekom AG and others
+//
+// SPDX-License-Identifier: Apache-2.0
+
+plugins {
+    alias(libs.plugins.ktor)
+    id("sh.ondr.koja") version "0.4.6"
+    id("org.graalvm.buildtools.native") version "0.11.3"
+}
+
+application {
+    mainClass = "org.eclipse.lmos.adl.server.AdlServerKt"
+}
+
+tasks.shadowJar {
+    isZip64 = true
+}
+
+graalvmNative {
+    binaries {
+        named("main") {
+            fallback.set(false)
+            verbose.set(true)
+
+            buildArgs.add("--initialize-at-build-time=ch.qos.logback")
+            buildArgs.add("--initialize-at-build-time=io.ktor,kotlin")
+            buildArgs.add("--initialize-at-build-time=org.slf4j.LoggerFactory")
+
+            buildArgs.add("--initialize-at-build-time=org.slf4j.helpers.Reporter")
+            buildArgs.add("--initialize-at-build-time=kotlinx.io.bytestring.ByteString")
+            buildArgs.add("--initialize-at-build-time=kotlinx.io.SegmentPool")
+
+            buildArgs.add("--initialize-at-build-time=kotlinx.serialization.json.Json")
+            buildArgs.add("--initialize-at-build-time=kotlinx.serialization.json.JsonImpl")
+            buildArgs.add("--initialize-at-build-time=kotlinx.serialization.json.ClassDiscriminatorMode")
+            buildArgs.add("--initialize-at-build-time=kotlinx.serialization.modules.SerializersModuleKt")
+
+            buildArgs.add("--initialize-at-build-time=io.grpc.netty.shaded.io.netty")
+            buildArgs.add("--initialize-at-run-time=io.grpc.netty.shaded.io.netty.handler.ssl.BouncyCastleAlpnSslUtils")
+            buildArgs.add("--initialize-at-run-time=io.grpc.netty.shaded.io.netty.buffer.AbstractReferenceCountedByteBuf")
+            buildArgs.add("--initialize-at-run-time=io.grpc.netty.shaded.io.netty.buffer.PooledByteBuf")
+            buildArgs.add("--initialize-at-run-time=io.grpc.netty.shaded.io.netty.buffer.UnpooledHeapByteBuf")
+            buildArgs.add("--initialize-at-run-time=io.grpc.netty.shaded.io.netty.buffer.ByteBuf")
+            buildArgs.add("--initialize-at-build-time=org.bouncycastle")
+            buildArgs.add("--initialize-at-build-time=kotlinx.io.files.PathsJvmKt")
+            buildArgs.add("--initialize-at-build-time=kotlinx.io.files.FileSystemJvmKt")
+
+            buildArgs.add("-H:+InstallExitHandlers")
+            buildArgs.add("-H:+ReportUnsupportedElementsAtRuntime")
+            buildArgs.add("-H:+ReportExceptionStackTraces")
+
+            imageName.set("graalvm-server")
+        }
+
+        named("test") {
+            fallback.set(false)
+            verbose.set(true)
+
+            buildArgs.add("--initialize-at-build-time=ch.qos.logback")
+            buildArgs.add("--initialize-at-build-time=io.ktor,kotlin")
+            buildArgs.add("--initialize-at-build-time=org.slf4j.LoggerFactory")
+
+            buildArgs.add("--initialize-at-build-time=org.slf4j.helpers.Reporter")
+            buildArgs.add("--initialize-at-build-time=kotlinx.io.bytestring.ByteString")
+            buildArgs.add("--initialize-at-build-time=kotlinx.io.SegmentPool")
+
+            buildArgs.add("--initialize-at-build-time=kotlinx.serialization.json.Json")
+            buildArgs.add("--initialize-at-build-time=kotlinx.serialization.json.JsonImpl")
+            buildArgs.add("--initialize-at-build-time=kotlinx.serialization.json.ClassDiscriminatorMode")
+            buildArgs.add("--initialize-at-build-time=kotlinx.serialization.modules.SerializersModuleKt")
+
+            buildArgs.add("--initialize-at-build-time=io.grpc.netty.shaded.io.netty")
+            buildArgs.add("--initialize-at-run-time=io.grpc.netty.shaded.io.netty.handler.ssl.BouncyCastleAlpnSslUtils")
+            buildArgs.add("--initialize-at-run-time=io.grpc.netty.shaded.io.netty.buffer.AbstractReferenceCountedByteBuf")
+            buildArgs.add("--initialize-at-run-time=io.grpc.netty.shaded.io.netty.buffer.PooledByteBuf")
+            buildArgs.add("--initialize-at-run-time=io.grpc.netty.shaded.io.netty.buffer.UnpooledHeapByteBuf")
+            buildArgs.add("--initialize-at-run-time=io.grpc.netty.shaded.io.netty.buffer.ByteBuf")
+            buildArgs.add("--initialize-at-build-time=org.bouncycastle")
+            buildArgs.add("--initialize-at-build-time=kotlinx.io.files.PathsJvmKt")
+            buildArgs.add("--initialize-at-build-time=kotlinx.io.files.FileSystemJvmKt")
+
+            buildArgs.add("-H:+InstallExitHandlers")
+            buildArgs.add("-H:+ReportUnsupportedElementsAtRuntime")
+            buildArgs.add("-H:+ReportExceptionStackTraces")
+
+            val path = "${projectDir}/src/test/resources/META-INF/native-image/"
+            buildArgs.add("-H:ReflectionConfigurationFiles=${path}reflect-config.json")
+            buildArgs.add("-H:ResourceConfigurationFiles=${path}resource-config.json")
+
+            imageName.set("adl-server-test")
+        }
+    }
+}
+
+dependencies {
+    val arcVersion = "0.213.0"
+
+    // Arc
+    api("org.eclipse.lmos:arc-scripting:$arcVersion")
+    api("org.eclipse.lmos:arc-azure-client:$arcVersion")
+    api("org.eclipse.lmos:arc-spring-boot-starter:$arcVersion")
+    api("org.eclipse.lmos:arc-api:$arcVersion")
+    api("org.eclipse.lmos:arc-agents:$arcVersion")
+    api("org.eclipse.lmos:arc-result:$arcVersion")
+    api("org.eclipse.lmos:arc-graphql-spring-boot-starter:$arcVersion")
+    api("org.eclipse.lmos:arc-assistants:$arcVersion")
+    api("org.eclipse.lmos:arc-readers:$arcVersion")
+    api("org.eclipse.lmos:arc-memory-redis:$arcVersion")
+
+    implementation(project(":adl-kotlin-runner"))
+
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.cio)
+    implementation(libs.ktor.server.websockets)
+    implementation(libs.ktor.server.static)
+    implementation(libs.ktor.server.cors)
+    implementation(libs.ktor.server.sse)
+    implementation(libs.graphql.kotlin.ktor)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.10.2")
+
+    // Logback
+    implementation(libs.logback.classic)
+
+    // LLM Clients
+    implementation(project(":arc-azure-client"))
+    // implementation("dev.langchain4j:langchain4j-ollama:1.8.0")
+
+    // Mutsache
+    implementation("com.github.spullara.mustache.java:compiler:0.9.14")
+
+    // Qdrant
+    implementation("io.qdrant:client:1.15.0")
+    implementation("com.google.guava:guava:33.5.0-jre")
+    implementation("com.google.protobuf:protobuf-java:4.33.2")
+
+    // Embeddings
+    implementation("dev.langchain4j:langchain4j:1.9.1")
+    implementation("dev.langchain4j:langchain4j-embeddings:1.9.1-beta17")
+    // implementation("dev.langchain4j:langchain4j-embeddings-all-minilm-l6-v2:1.11.0-beta19")
+    implementation("dev.langchain4j:langchain4j-embeddings-bge-small-en-v15-q:1.11.0-beta19")
+
+    // OpenTelemetry dependencies
+    implementation(platform("io.opentelemetry:opentelemetry-bom:1.55.0"))
+    implementation("io.opentelemetry:opentelemetry-extension-kotlin")
+    implementation("io.opentelemetry:opentelemetry-context")
+    implementation("io.opentelemetry:opentelemetry-api")
+    implementation("io.opentelemetry:opentelemetry-sdk")
+    implementation("io.opentelemetry:opentelemetry-exporter-otlp")
+    implementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure")
+    implementation("io.opentelemetry:opentelemetry-sdk-extension-autoconfigure-spi")
+
+    // Bouncy Castle
+    implementation("org.bouncycastle:bctls-jdk18on:1.78.1")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    implementation("io.ktor:ktor-server-sse:3.3.3")
+
+    // Test dependencies
+    testImplementation(libs.ktor.client.core)
+    testImplementation(libs.ktor.client.cio.jvm)
+    testImplementation(libs.kotlinx.serialization.json)
+    testImplementation("org.testcontainers:testcontainers:1.21.4")
+    testImplementation("org.testcontainers:junit-jupiter:1.21.4")
+    testImplementation("org.testcontainers:qdrant:1.21.4")
+}
