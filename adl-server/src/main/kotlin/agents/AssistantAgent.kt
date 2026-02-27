@@ -24,7 +24,6 @@ import org.eclipse.lmos.arc.agents.conversation.Conversation
 import org.eclipse.lmos.arc.agents.conversation.UserMessage
 import org.eclipse.lmos.arc.agents.conversation.latest
 import org.eclipse.lmos.arc.agents.dsl.extensions.addTool
-import org.eclipse.lmos.arc.agents.dsl.extensions.getCurrentUseCases
 import org.eclipse.lmos.arc.agents.dsl.extensions.info
 import org.eclipse.lmos.arc.agents.dsl.extensions.local
 import org.eclipse.lmos.arc.agents.dsl.extensions.processUseCases
@@ -39,10 +38,12 @@ import org.eclipse.lmos.arc.assistants.support.usecases.UseCase
 import org.eclipse.lmos.arc.assistants.support.usecases.features.processFlow
 import org.eclipse.lmos.arc.assistants.support.usecases.toUseCases
 import org.eclipse.lmos.adl.server.agents.extensions.UseCaseIdValidator
+import org.eclipse.lmos.adl.server.agents.extensions.removeWidgetRef
 import org.eclipse.lmos.adl.server.agents.filters.ConvertToWidget
 import org.eclipse.lmos.adl.server.agents.filters.MustFeature
 import org.eclipse.lmos.adl.server.agents.filters.Rephraser
 import org.eclipse.lmos.adl.server.agents.filters.SolutionCompliance
+import org.eclipse.lmos.adl.server.agents.filters.StaticResponseFeature
 import org.eclipse.lmos.adl.server.repositories.RolePromptRepository
 import org.eclipse.lmos.arc.agents.dsl.extensions.system
 
@@ -87,12 +88,7 @@ fun createAssistantAgent(
             +UseCaseIdValidator()
             +UseCaseResponseHandler()
             +ConversationGuider()
-            getCurrentUseCases()?.processedUseCaseMap?.get(getCurrentUseCases()?.currentUseCaseId)?.let { uc ->
-                val solution = uc.toUseCases().first().solution.joinToString("\n").trim()
-                if ((solution.startsWith("\"") || solution.startsWith("- \"")) && solution.endsWith("\"")) {
-                    outputMessage = outputMessage.update(solution.substringAfter("\"").substringBeforeLast("\""))
-                }
-            }
+            +StaticResponseFeature()
             +SolutionCompliance(embeddingModel)
             +ConvertToWidget(widgetRepository)
             +MustFeature()
@@ -113,7 +109,7 @@ fun createAssistantAgent(
             // Load Use Cases
             val currentUseCases = get<List<UseCase>>()
             val message = get<Conversation>().latest<UserMessage>()?.content
-            val otherUseCases = embeddingsRepository.search(message!!, limit = 10, scoreThreshold = 0.7f)
+            val otherUseCases = embeddingsRepository.search(message!!, limit = 7, scoreThreshold = 0.7f)
                 .distinctBy { it.adlId }
                 .flatMap { adlRepository.getAsUseCases(it.adlId) }
             info("Loaded ${otherUseCases.size} additional use cases from embeddings store.")
@@ -156,6 +152,9 @@ fun createAssistantAgent(
                     useCases = useCases, fallbackLimit = 3, conditions = conditions, exampleLimit = 5,
                     formatter = { content, useCase, useCases, usedUseCases ->
 
+                        // remove widget references
+                        val cleanContent = content.removeWidgetRef()
+
                         var addExamples = false
                         val examples = buildString {
                             append("## Example Conversations:\n")
@@ -178,7 +177,7 @@ fun createAssistantAgent(
                         }
 
                         processFlow(
-                            content = content,
+                            content = cleanContent,
                             useCase = useCase,
                             allUseCases = useCases,
                             usedUseCases = usedUseCases,

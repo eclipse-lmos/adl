@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.eclipse.lmos.adl.server.repositories
 
+import org.eclipse.lmos.adl.server.agents.extensions.addWidgetRef
 import org.eclipse.lmos.adl.server.model.Adl
 import org.eclipse.lmos.arc.assistants.support.usecases.UseCase
 import org.eclipse.lmos.arc.assistants.support.usecases.toUseCases
@@ -16,7 +17,7 @@ interface AdlRepository {
         val adl = get(id) ?: return emptyList()
         val useCases = adl.content.toUseCases()
         return if (adl.output != null) {
-            useCases.map { it.copy(output = listOf(Conditional(adl.output))) }
+            useCases.map { it.copy(solution = it.solution + Conditional("".addWidgetRef(adl.output))) }
         } else {
             useCases
         }

@@ -144,7 +144,7 @@ class MustFeature(private val keyword: String = "MUST", private val retryMax: In
             return message
         }
 
-        log.warn("MustFeature verification failed: $verificationResult")
+        log.warn("MustFeature verification failed for: ${message.content}")
         val fixedResponse = verificationResult.substringAfter("Fixed Response:")
             .trim()
             .replace("```", "")

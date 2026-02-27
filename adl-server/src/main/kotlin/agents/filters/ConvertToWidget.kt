@@ -7,6 +7,7 @@ package org.eclipse.lmos.adl.server.agents.filters
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.github.mustachejava.DefaultMustacheFactory
+import org.eclipse.lmos.adl.server.agents.extensions.extractWidgetRef
 import org.eclipse.lmos.adl.server.repositories.WidgetRepository
 import org.eclipse.lmos.adl.server.templates.TemplateLoader
 import org.eclipse.lmos.arc.agents.conversation.ConversationMessage
@@ -53,8 +54,7 @@ class ConvertToWidget(
     ): ConversationMessage {
         return context.getCurrentUseCases()?.currentUseCase()?.let { useCase ->
             try {
-                val widgetName =
-                    useCase.output.joinToString { it.text }.trim().takeIf { it.isNotEmpty() } ?: return message
+                val widgetName = useCase.solution.last().text.extractWidgetRef() ?: return message
                 val widget =
                     widgetRepository.findById(widgetName) ?: widgetRepository.findByName(widgetName).firstOrNull()
                     ?: return message

@@ -10,7 +10,7 @@ RUN chmod +x gradlew
 # Skip tests to speed up the build
 RUN ./gradlew :adl-server:installDist --no-daemon -x test
 
-FROM eclipse-temurin:21-jre-jammy
+FROM amazoncorretto:24
 WORKDIR /app
 COPY --from=build /home/gradle/project/adl-server/build/install/adl-server/ /app/
 EXPOSE 8080
