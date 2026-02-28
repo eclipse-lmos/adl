@@ -3,6 +3,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 FROM gradle:8-jdk24-corretto AS build
+# Install necessary tools found in build scripts (xargs is often missing in minimal images)
+RUN if command -v microdnf > /dev/null; then \
+        microdnf install -y findutils; \
+    elif command -v yum > /dev/null; then \
+        yum install -y findutils; \
+    elif command -v apt-get > /dev/null; then \
+        apt-get update && apt-get install -y findutils; \
+    fi
 WORKDIR /home/gradle/project
 COPY --chown=gradle:gradle . .
 # Ensure gradlew is executable

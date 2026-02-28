@@ -7,7 +7,7 @@ SERVER_STATIC_DIR="adl-server/src/main/resources/static"
 echo "Building adl-studio..."
 
 # Navigate to studio directory
-cd "$STUDIO_DIR" || { echo "Directory $STUDIO_DIR not found"; exit 1; }
+pushd "$STUDIO_DIR" > /dev/null || { echo "Directory $STUDIO_DIR not found"; exit 1; }
 
 # Install dependencies if needed
 if [ ! -d "node_modules" ]; then
@@ -24,7 +24,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Go back to root
-cd ..
+popd > /dev/null
 
 echo "Clearing old static files in $SERVER_STATIC_DIR..."
 mkdir -p "$SERVER_STATIC_DIR"
