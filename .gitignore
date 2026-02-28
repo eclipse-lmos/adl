@@ -59,3 +59,5 @@ bin/
 /adl-server/qdrant_storage/
 /.gradle/
 /.gradle/
+/ald-studio/node_modules/
+/ald-studio/.next/
