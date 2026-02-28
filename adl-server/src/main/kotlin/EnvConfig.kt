@@ -56,6 +56,14 @@ object EnvConfig {
      * Default value: 384
      */
     val qdrantVectorSize get() = System.getenv("QDRANT_VECTOR_SIZE")?.toInt() ?: 384
+
+    /**
+     * ADL storage folder.
+     *
+     * Environment variable: ADL_FOLDER
+     * Default value: null
+     */
+    val adlFolder get() = System.getenv("ADL_FOLDER")
 }
 
 /**

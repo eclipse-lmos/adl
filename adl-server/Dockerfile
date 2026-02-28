@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-FROM gradle:8-jdk24-corretto AS build
+FROM gradle:9-jdk-25-and-25-corretto AS build
 # Install necessary tools found in build scripts (xargs is often missing in minimal images)
 RUN if command -v microdnf > /dev/null; then \
         microdnf install -y findutils; \
@@ -18,7 +18,7 @@ RUN chmod +x gradlew
 # Skip tests to speed up the build
 RUN ./gradlew :adl-server:installDist --no-daemon -x test
 
-FROM amazoncorretto:24
+FROM amazoncorretto:25
 WORKDIR /app
 COPY --from=build /home/gradle/project/adl-server/build/install/adl-server/ /app/
 EXPOSE 8080

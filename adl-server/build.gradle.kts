@@ -127,6 +127,8 @@ dependencies {
     implementation("io.qdrant:client:1.15.0")
     implementation("com.google.guava:guava:33.5.0-jre")
     implementation("com.google.protobuf:protobuf-java:4.33.2")
+    implementation(libs.jackson.dataformat.yaml)
+    implementation(libs.jackson.kotlin)
 
     // Embeddings
     implementation("dev.langchain4j:langchain4j:1.9.1")

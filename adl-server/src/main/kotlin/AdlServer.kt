@@ -57,6 +57,7 @@ import org.eclipse.lmos.adl.server.model.Adl
 import org.eclipse.lmos.adl.server.repositories.AdlRepository
 import org.eclipse.lmos.adl.server.repositories.RolePromptRepository
 import org.eclipse.lmos.adl.server.repositories.UseCaseEmbeddingsRepository
+import org.eclipse.lmos.adl.server.repositories.impl.FileSystemAdlRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryAdlRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryRolePromptRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryStatisticsRepository
@@ -72,6 +73,7 @@ import org.eclipse.lmos.adl.server.services.UserDefinedCompleterProvider
 import org.eclipse.lmos.adl.server.sessions.InMemorySessions
 import org.eclipse.lmos.adl.server.templates.TemplateLoader
 import org.eclipse.lmos.arc.assistants.support.usecases.toUseCases
+import java.io.File
 import java.time.Instant.now
 
 fun startServer(
@@ -87,7 +89,11 @@ fun startServer(
     val embeddingModel = BgeSmallEnV15QuantizedEmbeddingModel()
     // val useCaseStore: UseCaseEmbeddingsRepository = QdrantUseCaseEmbeddingsStore(embeddingModel, qdrantConfig)
     val embeddingStore: UseCaseEmbeddingsRepository = InMemoryUseCaseEmbeddingsStore(embeddingModel)
-    val adlStorage: AdlRepository = InMemoryAdlRepository()
+    val adlStorage: AdlRepository = if (EnvConfig.adlFolder != null) {
+        FileSystemAdlRepository(File(EnvConfig.adlFolder!!))
+    } else {
+        InMemoryAdlRepository()
+    }
     val rolePromptRepository: RolePromptRepository = InMemoryRolePromptRepository()
     val mcpService = McpService()
     val testCaseRepository = InMemoryTestCaseRepository()
@@ -125,25 +131,6 @@ fun startServer(
     // Initialize Qdrant collection
     runBlocking {
         embeddingStore.initialize()
-    }
-
-    // Add example data
-    runBlocking {
-        // log.info("Loading examples", id, examples.size)
-        listOf("buy_a_car.md", "greeting.md", "unsure_customer.md").forEach { name ->
-            val content = this::class.java.classLoader.getResource("examples/$name")!!.readText()
-            val id = name.substringBeforeLast(".")
-            val examples = content.toUseCases()
-                .flatMap { it.examples.split("\n") }
-                .filterNot { it.isBlank() }
-                .map { it.removePrefix("- ") }
-            var contentWithoutExamples = content.replace("#### Examples", "")
-            examples.forEach {
-                contentWithoutExamples = contentWithoutExamples.replace("- $it", "")
-            }
-            adlStorage.store(Adl(id, contentWithoutExamples.trim(), listOf(), now().toString(), examples))
-            if (examples.isNotEmpty()) embeddingStore.storeUtterances(id, examples)
-        }
     }
 
     return embeddedServer(CIO, port = port ?: EnvConfig.serverPort) {
