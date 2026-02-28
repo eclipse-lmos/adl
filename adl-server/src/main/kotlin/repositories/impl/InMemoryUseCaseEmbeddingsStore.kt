@@ -27,29 +27,34 @@ class InMemoryUseCaseEmbeddingsStore(
         // In-Memory does not require initialization
     }
 
-    override suspend fun storeUtterances(id: String, examples: List<String>): Int {
+    override suspend fun storeUtterances(id: String, examples: List<String>, tags: Set<String>): Int {
         deleteByUseCaseId(id)
-        return storeExamples(id, "", examples)
+        return storeExamples(id, "", examples, tags)
     }
 
-    override suspend fun storeUseCase(adl: String, examples: List<String>): Int {
+    override suspend fun storeUseCase(adl: String, examples: List<String>, tags: Set<String>): Int {
         val parsedUseCases = adl.toUseCases()
         var count = 0
         parsedUseCases.forEach { useCase ->
             deleteByUseCaseId(useCase.id)
             val allExamples = (parseExamples(useCase.examples) + examples).distinct()
-            count += storeExamples(useCase.id, adl, allExamples)
+            count += storeExamples(useCase.id, adl, allExamples, tags)
         }
         return count
     }
 
-    private fun storeExamples(useCaseId: String, content: String, examples: List<String>): Int {
+    private fun storeExamples(useCaseId: String, content: String, examples: List<String>, tags: Set<String> = emptySet()): Int {
         val segments = examples.map { example ->
-            TextSegment.from(example, Metadata.from(mapOf(
+            val metadata = mutableMapOf(
                 PAYLOAD_USECASE_ID to useCaseId,
                 PAYLOAD_EXAMPLE to example,
                 PAYLOAD_CONTENT to content
-            )))
+            )
+            if (tags.isNotEmpty()) {
+                metadata[PAYLOAD_TAGS] = tags.joinToString(",")
+            }
+
+            TextSegment.from(example, Metadata.from(metadata))
         }
 
         if (segments.isEmpty()) return 0
@@ -89,7 +94,7 @@ class InMemoryUseCaseEmbeddingsStore(
          // Filter last user messages
          return messages.filter { it.role == "user" && it.content.length > 5 }
             .takeLast(5)
-            .flatMap { search(it.content, limit, scoreThreshold) }
+            .flatMap { search(it.content, limit, scoreThreshold, null) }
     }
 
     override suspend fun deleteByUseCaseId(useCaseId: String) {
@@ -127,5 +132,6 @@ class InMemoryUseCaseEmbeddingsStore(
         private const val PAYLOAD_USECASE_ID = "usecase_id"
         private const val PAYLOAD_EXAMPLE = "example"
         private const val PAYLOAD_CONTENT = "content"
+        private const val PAYLOAD_TAGS = "tags"
     }
 }

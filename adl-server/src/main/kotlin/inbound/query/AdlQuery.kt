@@ -46,7 +46,7 @@ class AdlQuery(
         if (searchTerm == null || searchTerm.term.isBlank()) {
             return allAdls
         }
-        val matches = useCaseStore.search(searchTerm.term, searchTerm.limit, searchTerm.threshold.toFloat())
+        val matches = useCaseStore.search(searchTerm.term, searchTerm.limit, searchTerm.threshold.toFloat(), searchTerm.tags?.toSet())
         val scores = matches.groupBy { it.adlId }.mapValues { it.value.maxOf { match -> match.score } }
 
         return allAdls.filter { it.id in scores.keys }
@@ -64,11 +64,12 @@ class AdlQuery(
         query: String,
         @GraphQLDescription("Maximum number of results to return") limit: Int? = null,
         @GraphQLDescription("Minimum similarity score (0.0 to 1.0)") scoreThreshold: Double? = 0.0,
+        @GraphQLDescription("Tags to filter by") tags: List<String>? = null,
     ): List<UseCaseMatch> {
         if (limit != null) require(limit in 1..100) { "limit must be between 1 and 100" }
         if (scoreThreshold != null) require(scoreThreshold in 0.0f..1.0f) { "scoreThreshold must be between 0.0 and 1.0" }
         require(query.isNotBlank()) { "query must not be blank" }
-        val results = useCaseStore.search(query, limit ?: 10, scoreThreshold?.toFloat() ?: 0.0f)
+        val results = useCaseStore.search(query, limit ?: 10, scoreThreshold?.toFloat() ?: 0.0f, tags?.toSet())
         return results.toMatches()
     }
 
@@ -117,4 +118,6 @@ data class SearchCriteria(
     val limit: Int = 50,
     @param:GraphQLDescription("Minimum similarity score (0.0 to 1.0)")
     val threshold: Double = 0.5,
+    @param:GraphQLDescription("Tags to filter by")
+    val tags: List<String>? = null,
 )

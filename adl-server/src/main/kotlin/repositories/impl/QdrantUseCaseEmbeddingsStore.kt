@@ -67,7 +67,7 @@ class QdrantUseCaseEmbeddingsStore(
      * @param id The ADL identifier.
      * @return The number of embeddings stored.
      */
-    override suspend fun storeUtterances(id: String, examples: List<String>): Int {
+    override suspend fun storeUtterances(id: String, examples: List<String>, tags: Set<String>): Int {
         val points = mutableListOf<PointStruct>()
 
         // Delete existing embeddings for all ADL IDs that will be stored
@@ -78,7 +78,7 @@ class QdrantUseCaseEmbeddingsStore(
             val point = PointStruct.newBuilder()
                 .setId(id(UUID.randomUUID()))
                 .setVectors(vectors(embedding.toList()))
-                .putAllPayload(buildPayload(id, "", example))
+                .putAllPayload(buildPayload(id, "", example, tags))
                 .build()
             points.add(point)
         }
@@ -100,7 +100,7 @@ class QdrantUseCaseEmbeddingsStore(
      * @param adl The UseCases to create embeddings from.
      * @return The number of embeddings stored.
      */
-    override suspend fun storeUseCase(adl: String, examples: List<String>): Int {
+    override suspend fun storeUseCase(adl: String, examples: List<String>, tags: Set<String>): Int {
         val points = mutableListOf<PointStruct>()
         val parsedUseCases = adl.toUseCases()
 
@@ -114,7 +114,7 @@ class QdrantUseCaseEmbeddingsStore(
                 val point = PointStruct.newBuilder()
                     .setId(id(UUID.randomUUID()))
                     .setVectors(vectors(embedding.toList()))
-                    .putAllPayload(buildPayload(useCase.id, adl, example))
+                    .putAllPayload(buildPayload(useCase.id, adl, example, tags))
                     .build()
                 points.add(point)
             }
@@ -145,7 +145,7 @@ class QdrantUseCaseEmbeddingsStore(
         tags: Set<String>?
     ): List<SearchResult> {
         val queryEmbedding = embeddingModel.embed(query).content().vector()
-        return searchByVector(queryEmbedding.toList(), limit, scoreThreshold)
+        return searchByVector(queryEmbedding.toList(), limit, scoreThreshold, tags)
     }
 
     /**
@@ -159,17 +159,38 @@ class QdrantUseCaseEmbeddingsStore(
         embedding: List<Float>,
         limit: Int = 5,
         scoreThreshold: Float = 0.0f,
+        tags: Set<String>? = null,
     ): List<SearchResult> {
         return try {
-            val searchRequest = io.qdrant.client.grpc.Points.SearchPoints.newBuilder()
+            val searchRequestBuilder = io.qdrant.client.grpc.Points.SearchPoints.newBuilder()
                 .setCollectionName(config.collectionName)
                 .addAllVector(embedding)
                 .setLimit(limit.toLong())
                 .setScoreThreshold(scoreThreshold)
                 .setWithPayload(io.qdrant.client.WithPayloadSelectorFactory.enable(true))
-                .build()
 
-            val results = client.searchAsync(searchRequest).await()
+            if (!tags.isNullOrEmpty()) {
+                 val filterBuilder = io.qdrant.client.grpc.Points.Filter.newBuilder()
+                 tags.forEach { tag ->
+                     filterBuilder.addMust(
+                        io.qdrant.client.grpc.Points.Condition.newBuilder()
+                            .setField(
+                                io.qdrant.client.grpc.Points.FieldCondition.newBuilder()
+                                    .setKey(PAYLOAD_TAGS)
+                                    .setMatch(
+                                        io.qdrant.client.grpc.Points.Match.newBuilder()
+                                            .setKeyword(tag)
+                                            .build()
+                                    )
+                                    .build()
+                            )
+                            .build()
+                     )
+                 }
+                searchRequestBuilder.setFilter(filterBuilder.build())
+            }
+
+            val results = client.searchAsync(searchRequestBuilder.build()).await()
 
             results.map { point: ScoredPoint -> point.toSearchResult() }
         } catch (e: ExecutionException) {
@@ -191,7 +212,7 @@ class QdrantUseCaseEmbeddingsStore(
         scoreThreshold: Float,
     ): List<SearchResult> {
         val combinedQuery = messages.filter { it.role == "user" && it.content.length > 5 }.takeLast(5).flatMap {
-            search(it.content, limit, scoreThreshold)
+            search(it.content, limit, scoreThreshold, null)
         }
         return combinedQuery
     }
@@ -262,11 +283,15 @@ class QdrantUseCaseEmbeddingsStore(
         useCaseId: String,
         useCase: String,
         example: String,
+        tags: Set<String> = emptySet(),
     ): Map<String, io.qdrant.client.grpc.JsonWithInt.Value> {
         return buildMap {
             put(PAYLOAD_ADL_ID, value(useCaseId))
             put(PAYLOAD_EXAMPLE, value(example))
             put(PAYLOAD_CONTENT, value(useCase))
+            if (tags.isNotEmpty()) {
+                put(PAYLOAD_TAGS, io.qdrant.client.ValueFactory.list(tags.map { value(it) }))
+            }
         }
     }
 
@@ -284,6 +309,7 @@ class QdrantUseCaseEmbeddingsStore(
         private const val PAYLOAD_ADL_ID = "adl_id"
         private const val PAYLOAD_EXAMPLE = "example"
         private const val PAYLOAD_CONTENT = "content"
+        private const val PAYLOAD_TAGS = "tags"
     }
 }
 

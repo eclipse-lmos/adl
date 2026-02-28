@@ -35,7 +35,7 @@ class AdlStorageMutation(
         log.info("Storing ADL with id: {} with {} examples", id, examples.size)
         val allExamples = content.toUseCases().flatMap { it.examples.split("\n") }.filter { it.isNotBlank() } + examples
         adlStorage.store(Adl(id, content.trim(), tags, createdAt ?: now().toString(), allExamples, output = output))
-        val storedCount = useCaseStore.storeUtterances(id, allExamples)
+        val storedCount = useCaseStore.storeUtterances(id, allExamples, tags.toSet())
         log.debug("Successfully stored ADL with id: {}. Generated {} embeddings.", id, storedCount)
         return StorageResult(
             storedExamplesCount = storedCount,

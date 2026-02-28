@@ -221,6 +221,10 @@ fun startServer(
                         text = this::class.java.classLoader.getResource("static/roles.html")!!.readText(),
                         contentType = ContentType.Text.Html,
                     )
+                    if (requestedPath.startsWith("dashboard")) call.respondText(
+                        text = this::class.java.classLoader.getResource("static/dashboard.html")!!.readText(),
+                        contentType = ContentType.Text.Html,
+                    )
                     if (requestedPath.startsWith("widgets")) call.respondText(
                         text = this::class.java.classLoader.getResource("static/widgets.html")!!.readText(),
                         contentType = ContentType.Text.Html,

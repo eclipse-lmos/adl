@@ -108,12 +108,13 @@ fun createAssistantAgent(
             } ?: local("role.md")!!
 
             // Load Use Cases
-            val useCaseTags = getOptional<UseCaseTags>()?.tags
+            val useCaseTags = getOptional<UseCaseTags>()?.tags?.takeIf { it.isNotEmpty() }
             val currentUseCases = get<List<UseCase>>()
             val message = get<Conversation>().latest<UserMessage>()?.content
-            val otherUseCases = embeddingsRepository.search(message!!, limit = 7, scoreThreshold = 0.7f, tags = useCaseTags)
-                .distinctBy { it.adlId }
-                .flatMap { adlRepository.getAsUseCases(it.adlId) }
+            val otherUseCases =
+                embeddingsRepository.search(message!!, limit = 7, scoreThreshold = 0.7f, tags = useCaseTags)
+                    .distinctBy { it.adlId }
+                    .flatMap { adlRepository.getAsUseCases(it.adlId) }
             info("Loaded ${otherUseCases.size} additional use cases from embeddings store.")
             val baseUseCases = local("base_use_cases.md")?.toUseCases() ?: emptyList()
 
