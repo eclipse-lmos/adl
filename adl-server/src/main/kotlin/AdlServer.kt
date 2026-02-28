@@ -133,6 +133,15 @@ fun startServer(
         embeddingStore.initialize()
     }
 
+    // Load existing ADLs and store their examples in the embeddings store
+    runBlocking {
+        val adls = adlStorage.list()
+        if (adls.isNotEmpty()) return@runBlocking
+        adls.forEach { adl ->
+            if (adl.examples.isNotEmpty()) embeddingStore.storeUtterances(adl.id, adl.examples)
+        }
+    }
+
     return embeddedServer(CIO, port = port ?: EnvConfig.serverPort) {
         // Register shutdown hook to close resources
         monitor.subscribe(ApplicationStopping) {
