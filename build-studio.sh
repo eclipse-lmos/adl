@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define paths
-STUDIO_DIR="ald-studio"
+STUDIO_DIR="../ald-studio"
 SERVER_STATIC_DIR="adl-server/src/main/resources/static"
 
 echo "Building adl-studio..."
@@ -31,9 +31,21 @@ mkdir -p "$SERVER_STATIC_DIR"
 rm -rf "$SERVER_STATIC_DIR"/*
 
 echo "Copying new build files to $SERVER_STATIC_DIR..."
+
+if [ ! -d "$STUDIO_DIR/out" ]; then
+    echo "Error: Build output directory $STUDIO_DIR/out not found!"
+    exit 1
+fi
+
 # Copy contents including hidden files
 cp -R "$STUDIO_DIR/out"/. "$SERVER_STATIC_DIR"/
 
+if [ $? -ne 0 ]; then
+    echo "Copy failed!"
+    exit 1
+fi
+
 echo "Done!"
 
-
+echo "Building docker image..."
+docker build -f adl-server/Dockerfile -t ghcr.io/eclipse-lmos/adl-server:latest .

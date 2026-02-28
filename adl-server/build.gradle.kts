@@ -4,7 +4,7 @@
 
 plugins {
     alias(libs.plugins.ktor)
-    id("sh.ondr.koja") version "0.4.6"
+    id("sh.ondr.koja") version "0.4.8"
     id("org.graalvm.buildtools.native") version "0.11.3"
 }
 
@@ -99,16 +99,11 @@ dependencies {
     implementation("org.eclipse.lmos:arc-scripting:$arcVersion")
     implementation("org.eclipse.lmos:arc-azure-client:$arcVersion")
     implementation("org.eclipse.lmos:arc-api:$arcVersion")
+    implementation("org.eclipse.lmos:arc-mcp:$arcVersion")
     implementation("org.eclipse.lmos:arc-agents:$arcVersion")
     implementation("org.eclipse.lmos:arc-result:$arcVersion")
     implementation("org.eclipse.lmos:arc-assistants:$arcVersion")
-    implementation("org.eclipse.lmos:arc-readers:$arcVersion")
-    implementation("org.eclipse.lmos:arc-memory-redis:$arcVersion")
-
-    // LLM
-    // implementation("dev.langchain4j:langchain4j-ollama:1.8.0")
-
-    implementation(project(":adl-kotlin-runner"))
+    implementation("org.eclipse.lmos:adl-kotlin-runner:$arcVersion")
 
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
@@ -122,6 +117,8 @@ dependencies {
     // Logback
     implementation(libs.logback.classic)
 
+    // LLM Clients
+    // implementation("dev.langchain4j:langchain4j-ollama:1.8.0")
 
     // Mutsache
     implementation("com.github.spullara.mustache.java:compiler:0.9.14")

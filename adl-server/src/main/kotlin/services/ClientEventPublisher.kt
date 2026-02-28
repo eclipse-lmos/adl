@@ -12,6 +12,7 @@ import org.eclipse.lmos.arc.agents.events.EventHandler
 import org.eclipse.lmos.arc.agents.llm.LLMFinishedEvent
 import io.ktor.sse.*
 import kotlinx.serialization.json.Json
+import org.eclipse.lmos.arc.agents.dsl.FilterExecutedEvent
 import org.eclipse.lmos.arc.agents.functions.LLMFunctionCalledEvent
 import org.eclipse.lmos.arc.core.getOrNull
 import org.slf4j.LoggerFactory
@@ -48,6 +49,21 @@ class ClientEventPublisher : EventHandler<Event> {
                                 "promptTokens" to event.promptTokens,
                                 "completionTokens" to event.completionTokens,
                                 "toolCallCount" to event.functionCallCount,
+                            )
+                        )
+                    )
+                )
+            }
+
+            is FilterExecutedEvent -> {
+                if (event.triggered && event.name != "UseCaseResponseHandler") tryPublish(
+                    ServerSentEvent(
+                        data = json.writeValueAsString(
+                            mapOf(
+                                "event" to "FilterExecutedEvent",
+                                "filterName" to event.name,
+                                "input" to event.input,
+                                "output" to event.output
                             )
                         )
                     )

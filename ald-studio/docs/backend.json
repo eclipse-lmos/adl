@@ -1,9 +1,0 @@
-{
-  "entities": {},
-  "auth": {
-    "providers": [
-      "google"
-    ]
-  },
-  "firestore": {}
-}

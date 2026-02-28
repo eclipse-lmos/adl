@@ -94,7 +94,12 @@ class AdlAssistantMutation(
 }
 
 @Serializable
-data class AssistantInput(val useCases: String? = null, val useCasesId: String? = null, val request: AgentRequest)
+data class AssistantInput(
+    val useCases: String? = null,
+    val useCasesId: String? = null,
+    val tags: List<String>? = null,
+    val request: AgentRequest
+)
 
 fun List<Message>.convert(): List<ConversationMessage> = map {
     when (it.role) {
