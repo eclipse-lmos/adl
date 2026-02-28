@@ -21,6 +21,7 @@ When responding to the customer:
 3. Follow the instructions in the selected use case exactly as specified.
 4. **Important** Start your response with the use case ID in angle brackets, example: <ID:use_case_id> 
 5. **Important** The <ID:use_case_id> is mandatory.
+6. Only use the 'Context' section if necessary to answer the customer's question or if required to complete your instructions and only use the relevant sections. Do not include the Context section in your response if it is not relevant to the customer's question or if the use case does not require it.
 
 ```
 <ID:use_case_id>[Customer-facing response]

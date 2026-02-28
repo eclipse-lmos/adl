@@ -10,8 +10,8 @@ import dev.langchain4j.model.embedding.EmbeddingModel
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore
 import org.eclipse.lmos.adl.server.models.SimpleMessage
-import org.eclipse.lmos.adl.server.repositories.UseCaseEmbeddingsRepository
 import org.eclipse.lmos.adl.server.repositories.SearchResult
+import org.eclipse.lmos.adl.server.repositories.UseCaseEmbeddingsRepository
 import org.eclipse.lmos.arc.assistants.support.usecases.toUseCases
 import java.util.concurrent.ConcurrentHashMap
 
@@ -20,6 +20,7 @@ class InMemoryUseCaseEmbeddingsStore(
 ) : UseCaseEmbeddingsRepository {
 
     private val store = InMemoryEmbeddingStore<TextSegment>()
+
     // Manage mapping of UseCaseId to embedding IDs in the store
     private val useCaseIdToEmbeddingIds = ConcurrentHashMap<String, MutableList<String>>()
 
@@ -43,7 +44,12 @@ class InMemoryUseCaseEmbeddingsStore(
         return count
     }
 
-    private fun storeExamples(useCaseId: String, content: String, examples: List<String>, tags: Set<String> = emptySet()): Int {
+    private fun storeExamples(
+        useCaseId: String,
+        content: String,
+        examples: List<String>,
+        tags: Set<String> = emptySet()
+    ): Int {
         val segments = examples.map { example ->
             val metadata = mutableMapOf(
                 PAYLOAD_USECASE_ID to useCaseId,
@@ -67,12 +73,24 @@ class InMemoryUseCaseEmbeddingsStore(
         return ids.size
     }
 
-    override suspend fun search(query: String, limit: Int, scoreThreshold: Float, tags: Set<String>?): List<SearchResult> {
+    override suspend fun search(
+        query: String,
+        limit: Int,
+        scoreThreshold: Float,
+        tags: Set<String>?
+    ): List<SearchResult> {
         val embedding = embeddingModel.embed(query).content()
         val request = EmbeddingSearchRequest.builder()
             .queryEmbedding(embedding)
             .maxResults(limit)
             .minScore(scoreThreshold.toDouble())
+            .filter { metadata ->
+                if (tags.isNullOrEmpty()) return@filter true
+                if (metadata !is Metadata) return@filter true
+                val exampleTags = metadata.getString(PAYLOAD_TAGS)?.split(",")?.map { it.trim() } ?: emptyList()
+                tags.all { it in exampleTags }
+
+            }
             .build()
         val results = store.search(request).matches()
 
@@ -91,8 +109,8 @@ class InMemoryUseCaseEmbeddingsStore(
         limit: Int,
         scoreThreshold: Float
     ): List<SearchResult> {
-         // Filter last user messages
-         return messages.filter { it.role == "user" && it.content.length > 5 }
+        // Filter last user messages
+        return messages.filter { it.role == "user" && it.content.length > 5 }
             .takeLast(5)
             .flatMap { search(it.content, limit, scoreThreshold, null) }
     }

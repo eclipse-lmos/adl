@@ -19,6 +19,7 @@ import org.eclipse.lmos.arc.agents.agent.process
 import org.eclipse.lmos.arc.assistants.support.usecases.toUseCases
 import org.eclipse.lmos.arc.core.getOrThrow
 import org.slf4j.LoggerFactory
+import kotlin.collections.map
 
 /**
  * GraphQL Mutation for creating test cases using the TestCreatorAgent.
@@ -106,7 +107,23 @@ class TestCreatorMutation(
             contract = input.contract ?: false
         )
 
-        return testCaseRepository.save(updated)
+        val variants =
+            testVariantAgent.process<String, TestVariant>(updated.expectedConversation.filter { it.role == "user" }
+                .joinToString { "- ${it.content}" }).getOrThrow()
+        log.info("Generated variants for test case ${updated.id}: $variants")
+        val newVariants = mutableListOf<List<ConversationTurn>>()
+        repeat(8) { i ->
+            newVariants += updated.expectedConversation.map { turn ->
+                if (turn.role == "user") {
+                    val variantContent = variants.variants[turn.content]?.getOrNull(i) ?: turn.content
+                    turn.copy(content = variantContent)
+                } else {
+                    turn
+                }
+            }
+        }
+
+        return testCaseRepository.save(updated.copy(variants = newVariants))
     }
 
     @GraphQLDescription("Adds a new Test Case manually.")
@@ -120,7 +137,24 @@ class TestCreatorMutation(
             expectedConversation = input.expectedConversation,
             contract = input.contract ?: false,
         )
-        return testCaseRepository.save(testCase)
+
+        val variants =
+            testVariantAgent.process<String, TestVariant>(testCase.expectedConversation.filter { it.role == "user" }
+                .joinToString { "- ${it.content}" }).getOrThrow()
+        log.info("Generated variants for test case ${testCase.id}: $variants")
+        val newVariants = mutableListOf<List<ConversationTurn>>()
+        repeat(8) { i ->
+            newVariants += testCase.expectedConversation.map { turn ->
+                if (turn.role == "user") {
+                    val variantContent = variants.variants[turn.content]?.getOrNull(i) ?: turn.content
+                    turn.copy(content = variantContent)
+                } else {
+                    turn
+                }
+            }
+        }
+
+        return testCaseRepository.save(testCase.copy(variants = newVariants))
     }
 }
 

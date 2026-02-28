@@ -51,6 +51,7 @@ import org.eclipse.lmos.adl.server.inbound.query.RolePromptQuery
 import org.eclipse.lmos.adl.server.inbound.query.TestCaseQuery
 import org.eclipse.lmos.adl.server.inbound.query.UserSettingsQuery
 import org.eclipse.lmos.adl.server.inbound.query.WidgetQuery
+import org.eclipse.lmos.adl.server.inbound.query.TagsQuery
 import org.eclipse.lmos.adl.server.inbound.rest.clientEvents
 import org.eclipse.lmos.adl.server.inbound.rest.openAICompletions
 import org.eclipse.lmos.adl.server.model.Adl
@@ -65,6 +66,7 @@ import org.eclipse.lmos.adl.server.repositories.impl.InMemoryTestCaseRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryUseCaseEmbeddingsStore
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryUserSettingsRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryWidgetRepository
+import org.eclipse.lmos.adl.server.repositories.impl.InMemoryTagRepository
 import org.eclipse.lmos.adl.server.services.ClientEventPublisher
 import org.eclipse.lmos.adl.server.services.ConversationEvaluator
 import org.eclipse.lmos.adl.server.services.McpService
@@ -102,6 +104,7 @@ fun startServer(
     val clientEventPublisher = ClientEventPublisher()
     val completerProvider = UserDefinedCompleterProvider()
     val statisticsRepository = InMemoryStatisticsRepository()
+    val tagRepository = InMemoryTagRepository()
 
     // Agents
     val exampleAgent = createExampleAgent(completerProvider)
@@ -135,10 +138,9 @@ fun startServer(
 
     // Load existing ADLs and store their examples in the embeddings store
     runBlocking {
-        val adls = adlStorage.list()
-        if (adls.isNotEmpty()) return@runBlocking
-        adls.forEach { adl ->
-            if (adl.examples.isNotEmpty()) embeddingStore.storeUtterances(adl.id, adl.examples)
+        adlStorage.list().forEach { adl ->
+            if (adl.examples.isNotEmpty()) embeddingStore.storeUtterances(adl.id, adl.examples, adl.tags.toSet())
+            tagRepository.saveAll(adl.tags)
         }
     }
 
@@ -174,12 +176,13 @@ fun startServer(
                     UserSettingsQuery(userSettingsRepository),
                     WidgetQuery(widgetRepository),
                     RolePromptQuery(rolePromptRepository),
-                    DashboardQuery(adlStorage, statisticsRepository)
+                    DashboardQuery(adlStorage, statisticsRepository),
+                    TagsQuery(tagRepository),
                 )
                 mutations = listOf(
                     AdlCompilerMutation(),
                     SystemPromptMutation(sessions, templateLoader, rolePromptRepository),
-                    AdlStorageMutation(embeddingStore, adlStorage),
+                    AdlStorageMutation(embeddingStore, adlStorage, tagRepository),
                     McpMutation(mcpService),
                     UserSettingsMutation(userSettingsRepository, completerProvider),
                     UseCaseImprovementMutation(improvementAgent),

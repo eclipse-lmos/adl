@@ -1,14 +1,14 @@
 ---
 id: "greeting"
 examples:
-- "Hi"
-- "Hello"
-- "Good morning"
-- "Good afternoon"
+  - "Hi"
+  - "Hello"
+  - "Good morning"
+  - "Good afternoon"
 ---
 
 ### UseCase: greeting
-
+ 
 #### Description
 Customer is saying hello or greeting the agent.
 

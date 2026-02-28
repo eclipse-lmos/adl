@@ -28,13 +28,18 @@ examples:
 ### UseCase: buy_a_car
 
 #### Description
-Customer want to buy a car.
+Customer want to buy a car. 
 
-#### Steps
-- Ask the customer how much they want to spend on the car.
+## Steps 
+- Ask the customer how much they want to spend on the car. 
 - Ask the customer if they would like to sell their current car.
 
 #### Solution
+
 Tell the customer we will notify them when we have cars that fit their budget and model preference. 
+
+#### Context
+We need to know their budget as it is required for our sales records.
+Selling their current car is optional, but it can lead to a 20% discount on the new car.
 
 ----

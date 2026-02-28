@@ -22,6 +22,10 @@ class ClientEventPublisher : EventHandler<Event> {
     private val mutableEvents = MutableSharedFlow<ServerSentEvent>(replay = 0, extraBufferCapacity = 64)
     private val json = jacksonObjectMapper()
     private val log = LoggerFactory.getLogger(this::class.java)
+    private val filterEvents = setOf(
+        "SolutionCompliance",
+        "UseCaseResponseHandler"
+    )
 
     val events: SharedFlow<ServerSentEvent> = mutableEvents.asSharedFlow()
 
@@ -56,7 +60,7 @@ class ClientEventPublisher : EventHandler<Event> {
             }
 
             is FilterExecutedEvent -> {
-                if (event.triggered && event.name != "UseCaseResponseHandler") tryPublish(
+                if (event.triggered && !filterEvents.contains(event.name)) tryPublish(
                     ServerSentEvent(
                         data = json.writeValueAsString(
                             mapOf(

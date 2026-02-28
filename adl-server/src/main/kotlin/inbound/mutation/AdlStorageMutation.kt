@@ -8,6 +8,7 @@ import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Mutation
 import org.eclipse.lmos.adl.server.model.Adl
 import org.eclipse.lmos.adl.server.repositories.AdlRepository
+import org.eclipse.lmos.adl.server.repositories.TagRepository
 import org.eclipse.lmos.adl.server.repositories.UseCaseEmbeddingsRepository
 import org.eclipse.lmos.arc.assistants.support.usecases.toUseCases
 import org.slf4j.LoggerFactory
@@ -19,6 +20,7 @@ import java.time.Instant.now
 class AdlStorageMutation(
     private val useCaseStore: UseCaseEmbeddingsRepository,
     private val adlStorage: AdlRepository,
+    private val tagRepository: TagRepository,
 ) : Mutation {
 
     private val log = LoggerFactory.getLogger(this::class.java)
@@ -36,6 +38,7 @@ class AdlStorageMutation(
         val allExamples = content.toUseCases().flatMap { it.examples.split("\n") }.filter { it.isNotBlank() } + examples
         adlStorage.store(Adl(id, content.trim(), tags, createdAt ?: now().toString(), allExamples, output = output))
         val storedCount = useCaseStore.storeUtterances(id, allExamples, tags.toSet())
+        tagRepository.saveAll(tags)
         log.debug("Successfully stored ADL with id: {}. Generated {} embeddings.", id, storedCount)
         return StorageResult(
             storedExamplesCount = storedCount,
@@ -53,6 +56,8 @@ class AdlStorageMutation(
 
         val updatedAdl = existingAdl.copy(tags = tags)
         adlStorage.store(updatedAdl)
+        useCaseStore.storeUtterances(id, existingAdl.examples, tags.toSet())
+        tagRepository.saveAll(tags)
 
         return StorageResult(
             storedExamplesCount = existingAdl.examples.size,

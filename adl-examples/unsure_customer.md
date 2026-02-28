@@ -25,7 +25,7 @@ examples:
 ---
 
 ### UseCase: unsure_customer
- 
+  
 #### Description
 Customer is unsure about buying a car and needs guidance.
 
