@@ -46,6 +46,7 @@ import org.eclipse.lmos.adl.server.agents.filters.SolutionCompliance
 import org.eclipse.lmos.adl.server.agents.filters.StaticResponseFeature
 import org.eclipse.lmos.adl.server.repositories.RolePromptRepository
 import org.eclipse.lmos.arc.agents.dsl.extensions.system
+import org.eclipse.lmos.arc.agents.dsl.getOptional
 
 
 /**
@@ -107,9 +108,10 @@ fun createAssistantAgent(
             } ?: local("role.md")!!
 
             // Load Use Cases
+            val useCaseTags = getOptional<UseCaseTags>()?.tags
             val currentUseCases = get<List<UseCase>>()
             val message = get<Conversation>().latest<UserMessage>()?.content
-            val otherUseCases = embeddingsRepository.search(message!!, limit = 7, scoreThreshold = 0.7f)
+            val otherUseCases = embeddingsRepository.search(message!!, limit = 7, scoreThreshold = 0.7f, tags = useCaseTags)
                 .distinctBy { it.adlId }
                 .flatMap { adlRepository.getAsUseCases(it.adlId) }
             info("Loaded ${otherUseCases.size} additional use cases from embeddings store.")
@@ -220,3 +222,6 @@ fun createAssistantAgent(
         }
     }
 }.getAgents().first() as ConversationAgent
+
+
+data class UseCaseTags(val tags: Set<String>?)

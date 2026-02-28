@@ -62,7 +62,7 @@ class InMemoryUseCaseEmbeddingsStore(
         return ids.size
     }
 
-    override suspend fun search(query: String, limit: Int, scoreThreshold: Float): List<SearchResult> {
+    override suspend fun search(query: String, limit: Int, scoreThreshold: Float, tags: Set<String>?): List<SearchResult> {
         val embedding = embeddingModel.embed(query).content()
         val request = EmbeddingSearchRequest.builder()
             .queryEmbedding(embedding)

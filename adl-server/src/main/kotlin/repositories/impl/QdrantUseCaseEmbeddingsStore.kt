@@ -138,7 +138,12 @@ class QdrantUseCaseEmbeddingsStore(
      * @param scoreThreshold The minimum similarity score (0.0 to 1.0).
      * @return List of matching UseCase embeddings with their scores.
      */
-    override suspend fun search(query: String, limit: Int, scoreThreshold: Float): List<SearchResult> {
+    override suspend fun search(
+        query: String,
+        limit: Int,
+        scoreThreshold: Float,
+        tags: Set<String>?
+    ): List<SearchResult> {
         val queryEmbedding = embeddingModel.embed(query).content().vector()
         return searchByVector(queryEmbedding.toList(), limit, scoreThreshold)
     }

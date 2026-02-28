@@ -7,6 +7,7 @@ package org.eclipse.lmos.adl.server.inbound.mutation
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Mutation
 import kotlinx.serialization.Serializable
+import org.eclipse.lmos.adl.server.agents.UseCaseTags
 import org.eclipse.lmos.adl.server.repositories.AdlRepository
 import org.eclipse.lmos.adl.server.repositories.StatisticsRepository
 import org.eclipse.lmos.arc.agents.ConversationAgent
@@ -60,6 +61,7 @@ class AdlAssistantMutation(
                 request,
                 useCases,
                 outputContext,
+                UseCaseTags(input.tags?.toSet())
             ),
         )
 
