@@ -7,6 +7,18 @@ Politely let the customer know their request is outside the scope of your assist
 
 ----
 
+### UseCase: unclear_request
+#### Description
+The customer's request is ambiguous or lacks sufficient detail to determine the appropriate use case.
+
+#### Solution
+Ask the customer for clarification or additional details to better understand their request.
+
+#### Fallback Solution
+Politely let the customer know their request is outside the scope of your assistance.
+
+----
+
 ### UseCase: customer_inquiry
 #### Description
 The customer is asking whether you can assist with a specific topic or service.

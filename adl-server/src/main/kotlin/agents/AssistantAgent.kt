@@ -47,6 +47,8 @@ import org.eclipse.lmos.adl.server.agents.filters.Rephraser
 import org.eclipse.lmos.adl.server.agents.filters.SolutionCompliance
 import org.eclipse.lmos.adl.server.agents.filters.StaticResponseFeature
 import org.eclipse.lmos.adl.server.repositories.RolePromptRepository
+import org.eclipse.lmos.arc.agents.dsl.extensions.getCurrentUseCases
+import org.eclipse.lmos.arc.agents.dsl.extensions.memory
 import org.eclipse.lmos.arc.agents.dsl.extensions.system
 import org.eclipse.lmos.arc.agents.dsl.getOptional
 import org.eclipse.lmos.arc.assistants.support.usecases.Conditional
@@ -115,8 +117,15 @@ fun createAssistantAgent(
             val useCaseTags = getOptional<UseCaseTags>()?.tags?.takeIf { it.isNotEmpty() }
             val currentUseCases = get<List<UseCase>>()
             val message = get<Conversation>().latest<UserMessage>()?.content
+
+            // TODO
+            // val usedUseCases = memory<List<String>>("usedUseCases")?.map {
+            //    adlRepository.getAsUseCases(it.adlId)
+            //
+
+            // TODO fix scoreThreshold
             val otherUseCases =
-                embeddingsRepository.search(message!!, limit = 7, scoreThreshold = 0.7f, tags = useCaseTags)
+                embeddingsRepository.search(message!!, limit = 7, scoreThreshold = 0.01f, tags = useCaseTags)
                     .distinctBy { it.adlId }
                     .flatMap { adlRepository.getAsUseCases(it.adlId) }
             info("Loaded ${otherUseCases.size} additional use cases from embeddings store.")
