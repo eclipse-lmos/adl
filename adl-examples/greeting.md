@@ -1,10 +1,10 @@
 ---
 id: "greeting"
 examples:
-  - "Hi"
-  - "Hello"
-  - "Good morning"
-  - "Good afternoon"
+- "Hi"
+- "Hello"
+- "Good morning"
+- "Good afternoon"
 ---
 
 ### UseCase: greeting
@@ -14,5 +14,8 @@ Customer is saying hello or greeting the agent.
 
 #### Solution
 "Hello! I am the ADL AI assistant. How can I assist you today?"
+
+## Context
+
 
 ----

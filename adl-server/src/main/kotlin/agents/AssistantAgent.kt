@@ -9,6 +9,7 @@ import dev.langchain4j.model.embedding.EmbeddingModel
 import dev.langchain4j.store.embedding.CosineSimilarity
 import org.eclipse.lmos.adl.server.agents.extensions.ConversationGuider
 import org.eclipse.lmos.adl.server.agents.extensions.InputHintProvider
+import org.eclipse.lmos.adl.server.agents.extensions.StepConverter
 import org.eclipse.lmos.adl.server.agents.extensions.currentDate
 import org.eclipse.lmos.adl.server.agents.extensions.isWeekend
 import org.eclipse.lmos.adl.server.repositories.AdlRepository
@@ -122,23 +123,15 @@ fun createAssistantAgent(
             val baseUseCases = local("base_use_cases.md")?.toUseCases() ?: emptyList()
 
             // Convert steps to conditionals in use cases
-            val useCases = (
-                    baseUseCases.filter {
-                        currentUseCases.none { bc -> bc.id == it.id }
-                        otherUseCases.none { bc -> bc.id == it.id }
-                    } + otherUseCases.filter {
-                        currentUseCases.none { bc -> bc.id == it.id }
-                    } + currentUseCases
-                    ).map { uc ->
-                    if (uc.steps.isNotEmpty()) {
-                        val convertedSteps = uc.steps.filter { it.text.isNotEmpty() }.mapIndexed { i, step ->
-                            step.copy(conditions = step.conditions + "step_${i + 1}")
-                        }
-                        uc.copy(solution = convertedSteps + uc.solution.map { s ->
-                            s.copy(conditions = s.conditions + "else")
-                        } + Conditional("\n"), steps = emptyList())
-                    } else uc
-                }
+            val stepConverter = StepConverter()
+            val useCases = stepConverter.convert(
+                baseUseCases.filter {
+                    currentUseCases.none { bc -> bc.id == it.id }
+                    otherUseCases.none { bc -> bc.id == it.id }
+                } + otherUseCases.filter {
+                    currentUseCases.none { bc -> bc.id == it.id }
+                } + currentUseCases
+            )
 
             // Add tools
             useCases.forEach { useCase ->
@@ -229,3 +222,4 @@ fun createAssistantAgent(
 
 
 data class UseCaseTags(val tags: Set<String>?)
+

@@ -93,6 +93,8 @@ fun startServer(
     val embeddingStore: UseCaseEmbeddingsRepository = InMemoryUseCaseEmbeddingsStore(embeddingModel)
     val adlStorage: AdlRepository = if (EnvConfig.adlFolder != null) {
         FileSystemAdlRepository(File(EnvConfig.adlFolder!!))
+    } else if (File("adls").exists()) {
+        FileSystemAdlRepository(File("adls"))
     } else {
         InMemoryAdlRepository()
     }
