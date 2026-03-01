@@ -39,6 +39,7 @@ import org.eclipse.lmos.arc.assistants.support.usecases.features.processFlow
 import org.eclipse.lmos.arc.assistants.support.usecases.toUseCases
 import org.eclipse.lmos.adl.server.agents.extensions.UseCaseIdValidator
 import org.eclipse.lmos.adl.server.agents.extensions.removeWidgetRef
+import org.eclipse.lmos.adl.server.agents.filters.AskFeature
 import org.eclipse.lmos.adl.server.agents.filters.ConvertToWidget
 import org.eclipse.lmos.adl.server.agents.filters.MustFeature
 import org.eclipse.lmos.adl.server.agents.filters.Rephraser
@@ -47,6 +48,7 @@ import org.eclipse.lmos.adl.server.agents.filters.StaticResponseFeature
 import org.eclipse.lmos.adl.server.repositories.RolePromptRepository
 import org.eclipse.lmos.arc.agents.dsl.extensions.system
 import org.eclipse.lmos.arc.agents.dsl.getOptional
+import org.eclipse.lmos.arc.assistants.support.usecases.Conditional
 
 
 /**
@@ -90,9 +92,10 @@ fun createAssistantAgent(
             +UseCaseResponseHandler()
             +ConversationGuider()
             +StaticResponseFeature()
+            +AskFeature()
+            +MustFeature()
             +SolutionCompliance(embeddingModel)
             +ConvertToWidget(widgetRepository)
-            +MustFeature()
             +UnresolvedDetector { "UNRESOLVED" }
         }
         prompt {
@@ -133,7 +136,7 @@ fun createAssistantAgent(
                         }
                         uc.copy(solution = convertedSteps + uc.solution.map { s ->
                             s.copy(conditions = s.conditions + "else")
-                        }, steps = emptyList())
+                        } + Conditional("\n"), steps = emptyList())
                     } else uc
                 }
 
