@@ -16,9 +16,9 @@ The customer has some questions related to our procedures or is asking general q
 
 ## Solution
 
-Use the context to answer any quesitons the customer has.
-If the customer is in middle of buying a car with us, ask them if they would like to continue.
+Use the context to answer any questions the customer has.
+If the customer is in the middle of buying a car with us, ask them if they would like to continue.
 
 #### Context
-We need to know their budget as it is required for our sales records.
+We need to know their budget because we have a different process for high-priced cars and budget cars.
 Selling their current car is optional, but it can lead to a 20% discount on the new car.
