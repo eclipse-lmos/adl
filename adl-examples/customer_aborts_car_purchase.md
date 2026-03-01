@@ -20,7 +20,6 @@ examples:
 - " I'm sorry, but I'm not going to buy a car right now."
 ---
 
-
 ## UseCase: customer_aborts_car_purchase
 
 ## Description

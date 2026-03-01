@@ -17,11 +17,11 @@ class RolePromptMutation(private val rolePromptRepository: RolePromptRepository)
     suspend fun updateRolePrompt(
         @GraphQLDescription("Unique identifier for the role prompt") id: String,
         @GraphQLDescription("Name of the role") name: String,
-        @GraphQLDescription("Tags associated with the role") tags: List<String>,
+        @GraphQLDescription("Tags associated with the role") tags: List<String>? = null,
         @GraphQLDescription("The role description prompt") role: String,
         @GraphQLDescription("The tone description prompt") tone: String,
     ): RolePrompt {
-        val rolePrompt = RolePrompt(id, name, "", tags, role, tone)
+        val rolePrompt = RolePrompt(id, name, "", tags ?: emptyList(), role, tone)
         return rolePromptRepository.save(rolePrompt)
     }
 

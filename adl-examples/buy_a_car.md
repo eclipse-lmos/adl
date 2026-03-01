@@ -24,7 +24,7 @@ The customer wants to buy a car or is in the process of buying a car with us.
 
 ## Steps 
 - ASK the customer how much they want to spend on the car. 
-- ASK the customer if they would like to sell their current car.
+- ASK the customer if they would like to sell their current car. It is fine if the customer does not have a budget.
 
 #### Solution
 
