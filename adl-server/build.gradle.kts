@@ -132,7 +132,7 @@ dependencies {
 
     // Embeddings
     implementation("dev.langchain4j:langchain4j:1.9.1")
-    implementation("dev.langchain4j:langchain4j-embeddings:1.9.1-beta17")
+    implementation("dev.langchain4j:langchain4j-embeddings:1.11.0-beta19")
     // implementation("dev.langchain4j:langchain4j-embeddings-all-minilm-l6-v2:1.11.0-beta19")
     implementation("dev.langchain4j:langchain4j-embeddings-bge-small-en-v15-q:1.11.0-beta19")
 
