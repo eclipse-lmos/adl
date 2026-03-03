@@ -92,7 +92,7 @@ graalvmNative {
 }
 
 dependencies {
-    val arcVersion = "0.217.0-M1"
+    val arcVersion = "0.217.0-M2"
 
     // Arc
     implementation("org.eclipse.lmos:arc-scripting:$arcVersion")

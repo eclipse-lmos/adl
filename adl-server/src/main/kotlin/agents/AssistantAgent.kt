@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.eclipse.lmos.adl.server.agents
 
-import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import org.eclipse.lmos.arc.assistants.support.usecases.features.plus
 import dev.langchain4j.model.embedding.EmbeddingModel
 import dev.langchain4j.store.embedding.CosineSimilarity
 import org.eclipse.lmos.adl.server.agents.extensions.ConversationGuider
@@ -47,11 +46,14 @@ import org.eclipse.lmos.adl.server.agents.filters.Rephraser
 import org.eclipse.lmos.adl.server.agents.filters.SolutionCompliance
 import org.eclipse.lmos.adl.server.agents.filters.StaticResponseFeature
 import org.eclipse.lmos.adl.server.repositories.RolePromptRepository
+import org.eclipse.lmos.arc.agents.dsl.extensions.SystemContextProvider
 import org.eclipse.lmos.arc.agents.dsl.extensions.getCurrentUseCases
 import org.eclipse.lmos.arc.agents.dsl.extensions.memory
 import org.eclipse.lmos.arc.agents.dsl.extensions.system
 import org.eclipse.lmos.arc.agents.dsl.getOptional
+import org.eclipse.lmos.arc.api.AgentRequest
 import org.eclipse.lmos.arc.assistants.support.usecases.Conditional
+import org.eclipse.lmos.arc.assistants.support.usecases.features.mustache
 
 
 /**
@@ -150,15 +152,25 @@ fun createAssistantAgent(
             }
 
             // Add conditions
+            val systemParams = getOptional<AgentRequest>()?.systemContext?.associate { it.key to it.value }
             val conditions = buildSet {
                 isWeekend()?.let { add("is_weekend") }
                 add(currentDate())
+                systemParams?.filter { (key, value) ->
+                    key.startsWith("is_") && value == "true"
+                }?.forEach { (key, _) -> add(key) }
             }
+
             val userMessageEmbedding = embeddingModel.embed(message)
             val useCasesPrompt =
                 processUseCases(
                     useCases = useCases, fallbackLimit = 3, conditions = conditions, exampleLimit = 5,
-                    formatter = { content, useCase, useCases, usedUseCases ->
+                    formatter = { c, useCase, useCases, usedUseCases ->
+
+                        // Resolve mustache templates in use case descriptions
+                        val content = if (systemParams != null && systemParams.values.isNotEmpty()) {
+                            mustache(systemParams)(c, useCase, useCases, usedUseCases)
+                        } else c
 
                         // remove widget references
                         val cleanContent = content.removeWidgetRef()

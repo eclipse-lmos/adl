@@ -18,6 +18,7 @@ import org.eclipse.lmos.arc.agents.conversation.ConversationMessage
 import org.eclipse.lmos.arc.agents.conversation.UserMessage
 import org.eclipse.lmos.arc.agents.conversation.latest
 import org.eclipse.lmos.arc.agents.dsl.extensions.OutputContext
+import org.eclipse.lmos.arc.agents.dsl.extensions.SystemContextProvider
 import org.eclipse.lmos.arc.api.AgentRequest
 import org.eclipse.lmos.arc.api.AgentResult
 import org.eclipse.lmos.arc.api.AgentResultType.MESSAGE
@@ -61,7 +62,7 @@ class AdlAssistantMutation(
                 request,
                 useCases,
                 outputContext,
-                UseCaseTags(input.tags?.toSet())
+                UseCaseTags(input.tags?.toSet()),
             ),
         )
 

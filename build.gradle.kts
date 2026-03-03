@@ -89,26 +89,6 @@ subprojects {
                     name = "Patrick Whelan"
                     email = "opensource@telekom.de"
                 }
-                developer {
-                    id = "bharat_bhushan"
-                    name = "Bharat Bhushan"
-                    email = "opensource@telekom.de"
-                }
-                developer {
-                    id = "merrenfx"
-                    name = "Max Erren"
-                    email = "opensource@telekom.de"
-                }
-                developer {
-                    id = "jas34"
-                    name = "Jasbir Singh"
-                    email = "jasbirsinghkamboj@gmail.com"
-                }
-                developer {
-                    id = "harishsainik"
-                    name = "Harish Kumar Saini"
-                    email = "harishsaini.lajak@gmail.com"
-                }
             }
             scm {
                 url = "https://github.com/eclipse-lmos/adl.git"
