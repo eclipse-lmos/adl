@@ -4,7 +4,6 @@
 
 plugins {
     alias(libs.plugins.ktor)
-    id("sh.ondr.koja") version "0.4.8"
     id("org.graalvm.buildtools.native") version "0.11.3"
 }
 
@@ -93,7 +92,7 @@ graalvmNative {
 }
 
 dependencies {
-    val arcVersion = "0.215.0"
+    val arcVersion = "0.217.0-M1"
 
     // Arc
     implementation("org.eclipse.lmos:arc-scripting:$arcVersion")

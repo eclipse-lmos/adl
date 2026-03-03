@@ -4,12 +4,10 @@
 
 package org.eclipse.lmos.adl.server.agents
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.eclipse.lmos.arc.agents.ConversationAgent
 import org.eclipse.lmos.arc.agents.agents
 import org.eclipse.lmos.arc.agents.llm.ChatCompleterProvider
-import sh.ondr.koja.JsonSchema
 
 /**
  * Creates the agent that generates test variants from an existing test case.
@@ -79,6 +77,5 @@ fun createTestVariantCreatorAgent(chatCompleterProvider: ChatCompleterProvider? 
 
 
 @Serializable
-@JsonSchema
 data class TestVariant(val variants: Map<String, List<String>>)
 
