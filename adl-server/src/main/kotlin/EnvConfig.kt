@@ -64,6 +64,30 @@ object EnvConfig {
      * Default value: null
      */
     val adlFolder get() = System.getenv("ADL_FOLDER")
+
+    /**
+     * PostgreSQL database JDBC URL.
+     *
+     * Environment variable: DATABASE_URL
+     * Default value: null (no database, use file/in-memory storage)
+     */
+    val databaseUrl get() = System.getenv("DATABASE_URL")
+
+    /**
+     * PostgreSQL database user.
+     *
+     * Environment variable: DATABASE_USER
+     * Default value: postgres
+     */
+    val databaseUser get() = System.getenv("DATABASE_USER") ?: "postgres"
+
+    /**
+     * PostgreSQL database password.
+     *
+     * Environment variable: DATABASE_PASSWORD
+     * Default value: postgres
+     */
+    val databasePassword get() = System.getenv("DATABASE_PASSWORD") ?: "postgres"
 }
 
 /**

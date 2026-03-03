@@ -151,6 +151,17 @@ dependencies {
     implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
     implementation("io.ktor:ktor-server-sse:3.3.3")
 
+    // Database (PostgreSQL + Exposed + Flyway)
+    implementation(libs.exposed.core)
+    implementation(libs.exposed.dao)
+    implementation(libs.exposed.jdbc)
+    implementation(libs.exposed.json)
+    implementation(libs.exposed.java.time)
+    implementation(libs.postgresql)
+    implementation(libs.hikaricp)
+    implementation(libs.flyway.core)
+    implementation(libs.flyway.postgresql)
+
     // Test dependencies
     testImplementation(libs.ktor.client.core)
     testImplementation(libs.ktor.client.cio.jvm)
@@ -158,4 +169,5 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers:1.21.4")
     testImplementation("org.testcontainers:junit-jupiter:1.21.4")
     testImplementation("org.testcontainers:qdrant:1.21.4")
+    testImplementation(libs.testcontainers.postgresql)
 }

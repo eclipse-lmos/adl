@@ -60,6 +60,10 @@ import org.eclipse.lmos.adl.server.repositories.RolePromptRepository
 import org.eclipse.lmos.adl.server.repositories.UseCaseEmbeddingsRepository
 import org.eclipse.lmos.adl.server.repositories.impl.FileSystemAdlRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryAdlRepository
+import org.eclipse.lmos.adl.server.repositories.impl.db.PostgresAdlRepository
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
+import org.flywaydb.core.Flyway
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryRolePromptRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryStatisticsRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryTestCaseRepository
@@ -91,12 +95,21 @@ fun startServer(
     val embeddingModel = BgeSmallEnV15QuantizedEmbeddingModel()
     // val useCaseStore: UseCaseEmbeddingsRepository = QdrantUseCaseEmbeddingsStore(embeddingModel, qdrantConfig)
     val embeddingStore: UseCaseEmbeddingsRepository = InMemoryUseCaseEmbeddingsStore(embeddingModel)
-    val adlStorage: AdlRepository = if (EnvConfig.adlFolder != null) {
-        FileSystemAdlRepository(File(EnvConfig.adlFolder!!))
-    } else if (File("adls").exists()) {
-        FileSystemAdlRepository(File("adls"))
-    } else {
-        InMemoryAdlRepository()
+    val adlStorage: AdlRepository = when {
+        EnvConfig.databaseUrl != null -> {
+            val hikariConfig = HikariConfig().apply {
+                jdbcUrl = EnvConfig.databaseUrl
+                username = EnvConfig.databaseUser
+                password = EnvConfig.databasePassword
+                maximumPoolSize = 10
+            }
+            val dataSource = HikariDataSource(hikariConfig)
+            Flyway.configure().dataSource(dataSource).load().migrate()
+            PostgresAdlRepository(dataSource)
+        }
+        EnvConfig.adlFolder != null -> FileSystemAdlRepository(File(EnvConfig.adlFolder!!))
+        File("adls").exists() -> FileSystemAdlRepository(File("adls"))
+        else -> InMemoryAdlRepository()
     }
     val rolePromptRepository: RolePromptRepository = InMemoryRolePromptRepository()
     val mcpService = McpService()
@@ -253,6 +266,10 @@ fun startServer(
                     )
                     if (requestedPath.startsWith("analytics")) call.respondText(
                         text = this::class.java.classLoader.getResource("static/analytics.html")!!.readText(),
+                        contentType = ContentType.Text.Html,
+                    )
+                    if (requestedPath.startsWith("adls")) call.respondText(
+                        text = this::class.java.classLoader.getResource("static/adls.html")!!.readText(),
                         contentType = ContentType.Text.Html,
                     )
                 }

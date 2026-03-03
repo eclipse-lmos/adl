@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADL Management</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+        h1 { font-size: 1.5rem; margin-bottom: 20px; color: #1a1a2e; }
+        .toolbar { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+        .toolbar input[type="text"] { flex: 1; min-width: 200px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        .toolbar select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff; }
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s; }
+        .btn-primary { background: #4361ee; color: #fff; }
+        .btn-primary:hover { background: #3a56d4; }
+        .btn-danger { background: #ef476f; color: #fff; }
+        .btn-danger:hover { background: #d63d5e; }
+        .btn-secondary { background: #e9ecef; color: #333; }
+        .btn-secondary:hover { background: #dde0e3; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid #f0f0f0; }
+        th { background: #f8f9fa; font-weight: 600; font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+        td { font-size: 14px; }
+        tr:hover { background: #f8f9ff; }
+        .tag { display: inline-block; padding: 2px 8px; background: #e8eaff; color: #4361ee; border-radius: 12px; font-size: 12px; margin: 1px 2px; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .modal { background: #fff; border-radius: 12px; padding: 24px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+        .modal h2 { font-size: 1.2rem; margin-bottom: 16px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 4px; color: #555; }
+        .form-group input, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; font-family: inherit; }
+        .form-group textarea { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; resize: vertical; }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+        .version-panel { background: #f8f9fa; border-radius: 8px; padding: 16px; margin-top: 16px; }
+        .version-panel h3 { font-size: 1rem; margin-bottom: 12px; }
+        .version-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .version-item:last-child { border-bottom: none; }
+        .diff-view { background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 8px; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 13px; white-space: pre-wrap; overflow-x: auto; margin-top: 12px; }
+        .diff-view .diff-add { color: #4ec9b0; }
+        .diff-view .diff-del { color: #f48771; }
+        .diff-view .diff-header { color: #569cd6; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #999; }
+        .empty-state p { font-size: 16px; margin-bottom: 16px; }
+        .content-preview { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+<div class="container" x-data="adlManager()">
+    <h1>ADL Management</h1>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <input type="text" placeholder="Search ADLs..." x-model="searchTerm" @input="filterAdls()">
+        <select x-model="selectedTag" @change="filterAdls()">
+            <option value="">All Tags</option>
+            <template x-for="tag in allTags" :key="tag">
+                <option :value="tag" x-text="tag"></option>
+            </template>
+        </select>
+        <button class="btn btn-primary" @click="openCreateModal()">+ New ADL</button>
+    </div>
+
+    <!-- Table -->
+    <table x-show="filteredAdls.length > 0">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Tags</th>
+            <th>Content</th>
+            <th>Version</th>
+            <th>Created</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        <template x-for="adl in filteredAdls" :key="adl.id">
+            <tr>
+                <td x-text="adl.id" style="font-weight:600"></td>
+                <td>
+                    <template x-for="tag in adl.tags" :key="tag">
+                        <span class="tag" x-text="tag"></span>
+                    </template>
+                </td>
+                <td><div class="content-preview" x-text="adl.content"></div></td>
+                <td x-text="adl.version"></td>
+                <td x-text="formatDate(adl.createdAt)"></td>
+                <td style="white-space:nowrap">
+                    <button class="btn btn-secondary btn-sm" @click="openEditModal(adl)">Edit</button>
+                    <button class="btn btn-secondary btn-sm" @click="openVersionHistory(adl)">History</button>
+                    <button class="btn btn-danger btn-sm" @click="confirmDelete(adl.id)">Delete</button>
+                </td>
+            </tr>
+        </template>
+        </tbody>
+    </table>
+
+    <div class="empty-state" x-show="filteredAdls.length === 0">
+        <p>No ADLs found.</p>
+        <button class="btn btn-primary" @click="openCreateModal()">Create your first ADL</button>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div class="modal-overlay" x-show="showModal" x-cloak @click.self="showModal = false">
+        <div class="modal">
+            <h2 x-text="isEditing ? 'Edit ADL' : 'Create ADL'"></h2>
+            <div class="form-group">
+                <label>ID</label>
+                <input type="text" x-model="form.id" :readonly="isEditing" :style="isEditing ? 'background:#f0f0f0' : ''">
+            </div>
+            <div class="form-group">
+                <label>Content</label>
+                <textarea rows="10" x-model="form.content"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Tags (comma-separated)</label>
+                <input type="text" x-model="form.tagsStr">
+            </div>
+            <div class="form-group">
+                <label>Examples (one per line)</label>
+                <textarea rows="4" x-model="form.examplesStr"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Output Template</label>
+                <textarea rows="3" x-model="form.output"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" @click="showModal = false">Cancel</button>
+                <button class="btn btn-primary" @click="saveAdl()" x-text="isEditing ? 'Update' : 'Create'"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation -->
+    <div class="modal-overlay" x-show="showDeleteConfirm" x-cloak @click.self="showDeleteConfirm = false">
+        <div class="modal" style="max-width:400px">
+            <h2>Delete ADL</h2>
+            <p style="margin:12px 0">Are you sure you want to delete <strong x-text="deleteId"></strong>?</p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" @click="showDeleteConfirm = false">Cancel</button>
+                <button class="btn btn-danger" @click="deleteAdl()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Version History Modal -->
+    <div class="modal-overlay" x-show="showVersionModal" x-cloak @click.self="showVersionModal = false">
+        <div class="modal">
+            <h2>Version History: <span x-text="versionAdlId"></span></h2>
+
+            <div class="version-panel" x-show="versions.length > 0">
+                <template x-for="v in versions" :key="v.version">
+                    <div class="version-item">
+                        <div>
+                            <strong>v<span x-text="v.version"></span></strong>
+                            <span style="color:#999; margin-left:8px" x-text="formatDate(v.createdAt)"></span>
+                        </div>
+                        <div style="display:flex; gap:6px">
+                            <button class="btn btn-secondary btn-sm" @click="viewVersion(v)">View</button>
+                            <button class="btn btn-secondary btn-sm" @click="diffWith(v.version)">Diff with current</button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            <div x-show="versions.length === 0" style="color:#999; padding:20px; text-align:center">
+                No version history available.
+            </div>
+
+            <!-- Version content view -->
+            <div x-show="viewingVersion" class="version-panel" style="margin-top:12px">
+                <h3>Version <span x-text="viewingVersion?.version"></span> Content</h3>
+                <div class="diff-view" x-text="viewingVersion?.content"></div>
+            </div>
+
+            <!-- Diff view -->
+            <div x-show="diffContent" style="margin-top:12px">
+                <h3>Diff</h3>
+                <div class="diff-view" x-html="renderDiff(diffContent)"></div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn btn-secondary" @click="showVersionModal = false">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function adlManager() {
+    return {
+        adls: [],
+        filteredAdls: [],
+        allTags: [],
+        searchTerm: '',
+        selectedTag: '',
+        showModal: false,
+        showDeleteConfirm: false,
+        showVersionModal: false,
+        isEditing: false,
+        deleteId: '',
+        versionAdlId: '',
+        versions: [],
+        viewingVersion: null,
+        diffContent: '',
+        form: { id: '', content: '', tagsStr: '', examplesStr: '', output: '' },
+
+        async init() {
+            await this.loadAdls();
+            await this.loadTags();
+        },
+
+        async gql(query, variables = {}) {
+            const resp = await fetch('/graphql', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, variables }),
+            });
+            const json = await resp.json();
+            if (json.errors) throw new Error(json.errors[0].message);
+            return json.data;
+        },
+
+        async loadAdls() {
+            const data = await this.gql('{ list { id content tags createdAt version examples output } }');
+            this.adls = data.list || [];
+            this.filterAdls();
+        },
+
+        async loadTags() {
+            try {
+                const data = await this.gql('{ tags }');
+                this.allTags = data.tags || [];
+            } catch { this.allTags = []; }
+        },
+
+        filterAdls() {
+            let list = this.adls;
+            if (this.searchTerm) {
+                const term = this.searchTerm.toLowerCase();
+                list = list.filter(a =>
+                    a.id.toLowerCase().includes(term) ||
+                    a.content.toLowerCase().includes(term) ||
+                    a.tags.some(t => t.toLowerCase().includes(term))
+                );
+            }
+            if (this.selectedTag) {
+                list = list.filter(a => a.tags.includes(this.selectedTag));
+            }
+            this.filteredAdls = list;
+        },
+
+        openCreateModal() {
+            this.isEditing = false;
+            this.form = { id: '', content: '', tagsStr: '', examplesStr: '', output: '' };
+            this.showModal = true;
+        },
+
+        openEditModal(adl) {
+            this.isEditing = true;
+            this.form = {
+                id: adl.id,
+                content: adl.content,
+                tagsStr: (adl.tags || []).join(', '),
+                examplesStr: (adl.examples || []).join('\n'),
+                output: adl.output || '',
+            };
+            this.showModal = true;
+        },
+
+        async saveAdl() {
+            const tags = this.form.tagsStr.split(',').map(t => t.trim()).filter(Boolean);
+            const examples = this.form.examplesStr.split('\n').map(e => e.trim()).filter(Boolean);
+            const mutation = `mutation($id: String!, $content: String!, $tags: [String!]!, $examples: [String!]!, $output: String) {
+                store(id: $id, content: $content, tags: $tags, examples: $examples, output: $output) {
+                    storedExamplesCount message
+                }
+            }`;
+            await this.gql(mutation, {
+                id: this.form.id,
+                content: this.form.content,
+                tags,
+                examples,
+                output: this.form.output || null,
+            });
+            this.showModal = false;
+            await this.loadAdls();
+            await this.loadTags();
+        },
+
+        confirmDelete(id) {
+            this.deleteId = id;
+            this.showDeleteConfirm = true;
+        },
+
+        async deleteAdl() {
+            await this.gql(`mutation($id: String!) { delete(id: $id) { useCaseId message } }`, { id: this.deleteId });
+            this.showDeleteConfirm = false;
+            await this.loadAdls();
+        },
+
+        async openVersionHistory(adl) {
+            this.versionAdlId = adl.id;
+            this.viewingVersion = null;
+            this.diffContent = '';
+            try {
+                const data = await this.gql(
+                    `query($id: String!) { versionHistory(id: $id) { adlId version content tags examples output createdAt } }`,
+                    { id: adl.id }
+                );
+                this.versions = data.versionHistory || [];
+            } catch { this.versions = []; }
+            this.showVersionModal = true;
+        },
+
+        viewVersion(v) {
+            this.viewingVersion = v;
+            this.diffContent = '';
+        },
+
+        async diffWith(fromVersion) {
+            this.viewingVersion = null;
+            try {
+                const current = this.adls.find(a => a.id === this.versionAdlId);
+                const toVersion = parseInt(current?.version || '1');
+                const data = await this.gql(
+                    `query($id: String!, $from: Int!, $to: Int!) { diffVersions(id: $id, fromVersion: $from, toVersion: $to) { contentDiff } }`,
+                    { id: this.versionAdlId, from: fromVersion, to: toVersion }
+                );
+                this.diffContent = data.diffVersions?.contentDiff || '';
+            } catch (e) { this.diffContent = 'Error: ' + e.message; }
+        },
+
+        renderDiff(diff) {
+            if (!diff) return '';
+            return diff.split('\n').map(line => {
+                if (line.startsWith('---') || line.startsWith('+++'))
+                    return `<span class="diff-header">${this.esc(line)}</span>`;
+                if (line.startsWith('+'))
+                    return `<span class="diff-add">${this.esc(line)}</span>`;
+                if (line.startsWith('-'))
+                    return `<span class="diff-del">${this.esc(line)}</span>`;
+                return this.esc(line);
+            }).join('\n');
+        },
+
+        esc(s) {
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        },
+
+        formatDate(d) {
+            if (!d) return '';
+            try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+            catch { return d; }
+        },
+    };
+}
+</script>
+</body>
+</html>

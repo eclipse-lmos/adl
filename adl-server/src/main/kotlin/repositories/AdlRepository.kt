@@ -5,6 +5,7 @@ package org.eclipse.lmos.adl.server.repositories
 
 import org.eclipse.lmos.adl.server.agents.extensions.addWidgetRef
 import org.eclipse.lmos.adl.server.model.Adl
+import org.eclipse.lmos.adl.server.models.AdlVersion
 import org.eclipse.lmos.arc.assistants.support.usecases.UseCase
 import org.eclipse.lmos.arc.assistants.support.usecases.toUseCases
 import org.eclipse.lmos.arc.assistants.support.usecases.Conditional
@@ -25,4 +26,7 @@ interface AdlRepository {
 
     suspend fun list(): List<Adl>
     suspend fun deleteById(id: String)
+
+    suspend fun getVersionHistory(id: String): List<AdlVersion> = emptyList()
+    suspend fun getVersion(id: String, version: Int): AdlVersion? = null
 }
