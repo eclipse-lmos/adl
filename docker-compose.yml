@@ -1,0 +1,25 @@
+services:
+  adl-server:
+    image: ghcr.io/eclipse-lmos/adl-server:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./my-adls:/app/adls
+    environment:
+      - ARC_AI_KEY=${OPENAI_API_KEY}
+      - ARC_MODEL=gpt-4o
+      - ARC_CLIENT=openai
+    networks:
+      - adl-network
+
+  demo-mcp:
+    image: ghcr.io/eclipse-lmos/demo-mcp:latest
+    ports:
+      - "8088:8088"
+    networks:
+      - adl-network
+
+networks:
+  adl-network:
+    driver: bridge
+
