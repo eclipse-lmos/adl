@@ -30,7 +30,7 @@ The customer wants to buy a car or is in the process of buying a car with us.
 
 Thank the customer for their business. We will be in touch.
 
-// Run Demo MCP server to access these tools.
+// Run Demo MCP server to access these tools. (docker pull ghcr.io/eclipse-lmos/demo-mcp:latest)
 // If the customer has provided a budget greater than $100,000 call the @get_elite_car_deals() to get the best deals.
 // If the customer did not mention a budget or mentioned a low budget call the @get_car_deals() to get the best deals.
 
