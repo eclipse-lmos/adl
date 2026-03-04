@@ -16,7 +16,7 @@ version = project.findProperty("version") as String
 plugins {
     kotlin("jvm") version "2.3.10" apply false
     kotlin("plugin.serialization") version "2.3.10" apply false
-    id("org.jetbrains.dokka") version "2.0.0"
+    id("org.jetbrains.dokka") version "2.1.0"
     id("org.cyclonedx.bom") version "2.3.1"
     // id("org.jlleitschuh.gradle.ktlint") version "12.2.0"
     id("org.jetbrains.kotlinx.kover") version "0.9.1"
