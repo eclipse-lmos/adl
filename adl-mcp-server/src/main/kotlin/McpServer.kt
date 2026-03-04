@@ -19,7 +19,6 @@ import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 import org.eclipse.lmos.arc.mcp.prompts.SystemPrompt
-import org.eclipse.lmos.arc.mcp.tools.SystemPromptTool
 
 private const val USE_CASE_PARAM = "useCase"
 
@@ -38,7 +37,6 @@ class McpServer {
             ),
         )
 
-        server.addTools(createTools())
         server.addPrompts(createSystemPrompts())
 
         return server
@@ -49,10 +47,6 @@ class McpServer {
         return listOf(systemPrompt)
     }
 
-    private fun createTools(): List<RegisteredTool> {
-        val adlSystemPromptTool: RegisteredTool = SystemPromptTool().createAdlSystemPromptTool()
-        return listOf(adlSystemPromptTool)
-    }
 }
 
 fun runSseMcpServerWithPlainConfiguration(port: Int, wait: Boolean = true): EmbeddedServer<*, *> {

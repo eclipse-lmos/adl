@@ -16,7 +16,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 /**
- * GraphQL mutation for generating system prompts from ADL code.
+ * GraphQL mutation for generating system prompts from ADL code
  */
 class SystemPromptMutation(
     private val sessions: Sessions,
