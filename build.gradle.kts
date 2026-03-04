@@ -35,7 +35,7 @@ subprojects {
     apply(plugin = "com.vanniktech.maven.publish")
 
     java {
-        sourceCompatibility = JavaVersion.VERSION_21
+        sourceCompatibility = JavaVersion.VERSION_24
     }
 
     // currently ktlint has issues with context parameters.
@@ -48,7 +48,7 @@ subprojects {
     tasks.withType<KotlinJvmCompile>().configureEach {
         compilerOptions {
             freeCompilerArgs.addAll(listOf("-Xcontext-parameters", "-Xjsr305=strict"))
-            jvmTarget = JvmTarget.fromTarget("21")
+            jvmTarget = JvmTarget.fromTarget("24")
         }
     }
 
