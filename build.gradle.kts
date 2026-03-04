@@ -35,7 +35,7 @@ subprojects {
     apply(plugin = "com.vanniktech.maven.publish")
 
     java {
-        sourceCompatibility = JavaVersion.VERSION_24
+        sourceCompatibility = JavaVersion.VERSION_25
     }
 
     // currently ktlint has issues with context parameters.
