@@ -31,11 +31,12 @@ class AdlStorageMutation(
         @GraphQLDescription("The content of the ADL") content: String,
         @GraphQLDescription("Tags associated with the ADL") tags: List<String>,
         @GraphQLDescription("Timestamp when the ADL was created") createdAt: String? = null,
-        @GraphQLDescription("Examples") examples: List<String>,
+        @GraphQLDescription("Examples") examples: List<String>? = null,
         @GraphQLDescription("The output template") output: String? = null,
     ): StorageResult {
-        log.info("Storing ADL with id: {} with {} examples", id, examples.size)
-        val allExamples = content.toUseCases().flatMap { it.examples.split("\n") }.filter { it.isNotBlank() } + examples
+        val examplesList = examples ?: emptyList()
+        log.info("Storing ADL with id: {} with {} examples", id, examplesList.size)
+        val allExamples = content.toUseCases().flatMap { it.examples.split("\n") }.filter { it.isNotBlank() } + examplesList
         adlStorage.store(Adl(id, content.trim(), tags, createdAt ?: now().toString(), allExamples, output = output))
         val storedCount = useCaseStore.storeUtterances(id, allExamples, tags.toSet())
         tagRepository.saveAll(tags)
