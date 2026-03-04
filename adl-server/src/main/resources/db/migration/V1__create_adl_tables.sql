@@ -1,3 +1,7 @@
+-- SPDX-FileCopyrightText: 2025 Deutsche Telekom AG and others
+--
+-- SPDX-License-Identifier: Apache-2.0
+
 CREATE TABLE adls (
     id              VARCHAR(255) PRIMARY KEY,
     content         TEXT NOT NULL,
