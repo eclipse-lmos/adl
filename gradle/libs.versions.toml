@@ -16,6 +16,10 @@ spring-ai-mcp-version = "1.1.0"
 mcp-version = "0.14.1"
 mcp-kotlin-version = "0.8.1"
 ktor-otel-version = "2.18.1-alpha"
+exposed-version = "0.61.0"
+postgresql-version = "42.7.5"
+hikari-version = "6.3.0"
+flyway-version = "11.8.0"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin-version" }
@@ -84,3 +88,14 @@ jackson-dataformat-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-d
 
 resilience4j-kotlin = { module = "io.github.resilience4j:resilience4j-kotlin", version.ref = "resilience4j-version" }
 resilience4j-ratelimiter = { module = "io.github.resilience4j:resilience4j-ratelimiter", version.ref = "resilience4j-version" }
+
+exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed-version" }
+exposed-dao = { module = "org.jetbrains.exposed:exposed-dao", version.ref = "exposed-version" }
+exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed-version" }
+exposed-json = { module = "org.jetbrains.exposed:exposed-json", version.ref = "exposed-version" }
+exposed-java-time = { module = "org.jetbrains.exposed:exposed-java-time", version.ref = "exposed-version" }
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql-version" }
+hikaricp = { module = "com.zaxxer:HikariCP", version.ref = "hikari-version" }
+flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway-version" }
+flyway-postgresql = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway-version" }
+testcontainers-postgresql = { module = "org.testcontainers:postgresql", version = "1.21.4" }

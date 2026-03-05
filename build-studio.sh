@@ -1,7 +1,10 @@
 #!/bin/bash
+# SPDX-FileCopyrightText: 2025 Deutsche Telekom AG and others
+#
+# SPDX-License-Identifier: Apache-2.0
 
 # Define paths
-STUDIO_DIR="../ald-studio"
+STUDIO_DIR="./adl-studio"
 SERVER_STATIC_DIR="adl-server/src/main/resources/static"
 
 echo "Building adl-studio..."
