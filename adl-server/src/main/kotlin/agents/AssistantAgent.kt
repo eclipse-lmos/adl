@@ -117,7 +117,7 @@ fun createAssistantAgent(
 
             // Load Use Cases
             val useCaseTags = getOptional<UseCaseTags>()?.tags?.takeIf { it.isNotEmpty() }
-            val currentUseCases = get<List<UseCase>>()
+            val currentUseCases = getOptional<List<UseCase>>() ?: emptyList()
             val message = get<Conversation>().latest<UserMessage>()?.content
 
             // TODO

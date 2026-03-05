@@ -7,18 +7,16 @@ package org.eclipse.lmos.adl.server.inbound.mutation
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Mutation
 import kotlinx.serialization.Serializable
+import org.eclipse.lmos.adl.server.agents.EvalAgent
 import org.eclipse.lmos.adl.server.agents.EvalOutput
 import org.eclipse.lmos.adl.server.models.SimpleMessage
 import org.eclipse.lmos.adl.server.services.ConversationEvaluator
-import org.eclipse.lmos.arc.agents.ConversationAgent
-import org.eclipse.lmos.arc.agents.agent.process
-import org.eclipse.lmos.arc.core.getOrThrow
 
 /**
  * GraphQL Query for evaluating conversations.
  */
 class AdlEvalMutation(
-    private val testAgent: ConversationAgent,
+    private val testAgent: EvalAgent,
     private val conversationEvaluator: ConversationEvaluator,
 ) : Mutation {
 
@@ -26,7 +24,7 @@ class AdlEvalMutation(
     suspend fun eval(
         @GraphQLDescription("The use case") input: EvalInput,
     ): EvalOutput {
-        return testAgent.process<EvalInput, EvalOutput>(input).getOrThrow()
+        return testAgent.eval(input)
     }
 
     @GraphQLDescription("Evaluates a conversation against an expected conversation.")

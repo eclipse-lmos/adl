@@ -54,7 +54,6 @@ import org.eclipse.lmos.adl.server.inbound.query.WidgetQuery
 import org.eclipse.lmos.adl.server.inbound.query.TagsQuery
 import org.eclipse.lmos.adl.server.inbound.rest.clientEvents
 import org.eclipse.lmos.adl.server.inbound.rest.openAICompletions
-import org.eclipse.lmos.adl.server.model.Adl
 import org.eclipse.lmos.adl.server.repositories.AdlRepository
 import org.eclipse.lmos.adl.server.repositories.RolePromptRepository
 import org.eclipse.lmos.adl.server.repositories.UseCaseEmbeddingsRepository
@@ -78,9 +77,7 @@ import org.eclipse.lmos.adl.server.services.TestExecutor
 import org.eclipse.lmos.adl.server.services.UserDefinedCompleterProvider
 import org.eclipse.lmos.adl.server.sessions.InMemorySessions
 import org.eclipse.lmos.adl.server.templates.TemplateLoader
-import org.eclipse.lmos.arc.assistants.support.usecases.toUseCases
 import java.io.File
-import java.time.Instant.now
 
 fun startServer(
     wait: Boolean = true,

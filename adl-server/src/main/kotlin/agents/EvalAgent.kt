@@ -6,6 +6,7 @@ package org.eclipse.lmos.adl.server.agents
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import org.eclipse.lmos.adl.server.inbound.mutation.EvalInput
 import org.eclipse.lmos.arc.agents.ConversationAgent
 import org.eclipse.lmos.arc.agents.agents
 import org.eclipse.lmos.arc.agents.llm.ChatCompleterProvider
@@ -15,17 +16,23 @@ import org.eclipse.lmos.arc.agents.llm.ReasoningEffort
 /**
  * Creates the agent that evaluates conversations.
  */
-fun createEvalAgent(chatCompleterProvider: ChatCompleterProvider? = null): ConversationAgent = agents(chatCompleterProvider = chatCompleterProvider) {
-    agent {
-        name = "eval_agent"
 
-        // output<EvalOutput>(
-        //     name = "Eval Output",
-        //     description = "Evaluation output for use case compliance",
-        // )
+interface EvalAgent {
+    suspend fun eval(input: EvalInput): EvalOutput
+}
 
-        prompt {
-            """
+fun createEvalAgent(chatCompleterProvider: ChatCompleterProvider? = null): EvalAgent =
+    agents(chatCompleterProvider = chatCompleterProvider) {
+        agent {
+            name = "eval_agent"
+
+            output<EvalOutput>(
+                name = "Eval Output",
+                description = "Evaluation output for use case compliance",
+            )
+
+            prompt {
+                """
         You are an evaluator that determines whether an assistant response correctly fulfills a specific use case.
         
         INPUTS:
@@ -73,12 +80,11 @@ fun createEvalAgent(chatCompleterProvider: ChatCompleterProvider? = null): Conve
         Do not reveal internal reasoning.
 
             """
+            }
         }
-    }
-}.getAgents().first() as ConversationAgent
+    }.getAgents().first().proxy<EvalAgent>()
 
 @Serializable
-// @JsonSchema
 data class EvalOutput(
     val verdict: String,
     val score: Int,

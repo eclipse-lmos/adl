@@ -7,6 +7,7 @@ import org.eclipse.lmos.adl.server.agents.extensions.ConversationGuider
 import org.eclipse.lmos.adl.server.agents.extensions.InputHintProvider
 import org.eclipse.lmos.adl.server.agents.extensions.currentDate
 import org.eclipse.lmos.adl.server.agents.extensions.isWeekend
+import org.eclipse.lmos.adl.server.inbound.mutation.EvalInput
 import org.eclipse.lmos.adl.server.repositories.AdlRepository
 import org.eclipse.lmos.adl.server.repositories.TestCaseRepository
 import org.eclipse.lmos.adl.server.repositories.UseCaseEmbeddingsRepository
@@ -30,27 +31,33 @@ import org.eclipse.lmos.arc.assistants.support.filters.UnresolvedDetector
 import org.eclipse.lmos.arc.assistants.support.filters.UseCaseResponseHandler
 import org.eclipse.lmos.arc.assistants.support.usecases.UseCase
 import org.eclipse.lmos.arc.assistants.support.usecases.toUseCases
+import kotlin.collections.first
+
+interface SpellingAgent {
+    suspend fun correct(input: String): String
+}
 
 /**
  * Creates the agent that checks for spelling and grammar errors.
  */
-fun createSpellingAgent(chatCompleterProvider: ChatCompleterProvider? = null): ConversationAgent = agents(chatCompleterProvider = chatCompleterProvider) {
-    agent {
-        name = "spelling_agent"
-        settings = { ChatCompletionSettings(temperature = 0.0, seed = 42) }
-        filterOutput {
-            -"```json"
-            -"```"
-            "UseCase" replaces "Use Case"
-        }
-        prompt {
-           """
+fun createSpellingAgent(chatCompleterProvider: ChatCompleterProvider? = null): SpellingAgent =
+    agents(chatCompleterProvider = chatCompleterProvider) {
+        agent {
+            name = "spelling_agent"
+            settings = { ChatCompletionSettings(temperature = 0.0, seed = 42) }
+            filterOutput {
+                -"```json"
+                -"```"
+                "UseCase" replaces "Use Case"
+            }
+            prompt {
+                """
                You are a grammar and spelling correction tool.
                Fix spelling and grammar errors in the input text.
                Preserve the original wording, structure, and formatting as much as possible.
                Return only the corrected input text.
                Do not add explanations, comments, or extra text.
            """.trimIndent()
+            }
         }
-    }
-}.getAgents().first() as ConversationAgent
+    }.getAgents().first().proxy<SpellingAgent>()
