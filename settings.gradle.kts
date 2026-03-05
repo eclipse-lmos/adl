@@ -5,3 +5,5 @@
 rootProject.name = "adl"
 
 include("adl-server")
+
+include("adl-mcp-server")
