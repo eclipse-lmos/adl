@@ -1,4 +1,4 @@
-package org.eclipse.lmos.arc.mcp
+package org.eclipse.lmos.adl.mcp
 
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
 import io.modelcontextprotocol.kotlin.sdk.types.GetPromptRequest

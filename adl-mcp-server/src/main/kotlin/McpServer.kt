@@ -1,4 +1,4 @@
-package org.eclipse.lmos.arc.mcp
+package org.eclipse.lmos.adl.mcp
 
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -18,7 +18,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
-import org.eclipse.lmos.arc.mcp.prompts.SystemPrompt
+import org.eclipse.lmos.adl.mcp.prompts.SystemPrompt
 
 private const val USE_CASE_PARAM = "useCase"
 

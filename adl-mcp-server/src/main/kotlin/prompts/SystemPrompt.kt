@@ -1,4 +1,4 @@
-package org.eclipse.lmos.arc.mcp.prompts
+package org.eclipse.lmos.adl.mcp.prompts
 
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredPrompt
 import io.modelcontextprotocol.kotlin.sdk.types.GetPromptRequest
@@ -9,11 +9,11 @@ import io.modelcontextprotocol.kotlin.sdk.types.PromptMessage
 import io.modelcontextprotocol.kotlin.sdk.types.Role
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.serialization.json.Json
-import org.eclipse.lmos.arc.mcp.Util
-import org.eclipse.lmos.arc.mcp.SystemPromptMutation
-import org.eclipse.lmos.arc.mcp.SystemPromptResult
-import org.eclipse.lmos.arc.mcp.sessions.InMemorySessions
-import org.eclipse.lmos.arc.mcp.tools.systemprompt.templates.TemplateLoader
+import org.eclipse.lmos.adl.mcp.Util
+import org.eclipse.lmos.adl.mcp.SystemPromptMutation
+import org.eclipse.lmos.adl.mcp.SystemPromptResult
+import org.eclipse.lmos.adl.mcp.sessions.InMemorySessions
+import org.eclipse.lmos.adl.mcp.tools.systemprompt.templates.TemplateLoader
 
 class SystemPrompt {
     private val sessions = InMemorySessions()

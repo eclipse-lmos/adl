@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package org.eclipse.lmos.arc.mcp
+package org.eclipse.lmos.adl.mcp
 
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Mutation
@@ -10,8 +10,8 @@ import kotlinx.serialization.Serializable
 import org.eclipse.lmos.arc.assistants.support.usecases.UseCase
 import org.eclipse.lmos.arc.assistants.support.usecases.formatToString
 import org.eclipse.lmos.arc.assistants.support.usecases.toUseCases
-import org.eclipse.lmos.arc.mcp.sessions.Sessions
-import org.eclipse.lmos.arc.mcp.tools.systemprompt.templates.TemplateLoader
+import org.eclipse.lmos.adl.mcp.sessions.Sessions
+import org.eclipse.lmos.adl.mcp.tools.systemprompt.templates.TemplateLoader
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
