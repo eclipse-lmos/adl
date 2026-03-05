@@ -122,3 +122,28 @@ export const TagsQuery = `
     tags
   }
 `;
+
+export const VersionHistoryQuery = `
+  query VersionHistory($id: String!) {
+    versionHistory(id: $id) {
+      adlId
+      version
+      content
+      tags
+      examples
+      output
+      createdAt
+    }
+  }
+`;
+
+export const DiffVersionsQuery = `
+  query DiffVersions($id: String!, $fromVersion: Int!, $toVersion: Int!) {
+    diffVersions(id: $id, fromVersion: $fromVersion, toVersion: $toVersion) {
+      adlId
+      fromVersion
+      toVersion
+      contentDiff
+    }
+  }
+`;
