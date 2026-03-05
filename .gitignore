@@ -61,3 +61,4 @@ bin/
 /.gradle/
 /ald-studio/node_modules/
 /ald-studio/.next/
+/adl-studio/node_modules/

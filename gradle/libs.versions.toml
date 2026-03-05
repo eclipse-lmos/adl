@@ -23,6 +23,7 @@ flyway-version = "11.8.0"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin-version" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin-version" }
 ktor = { id = "io.ktor.plugin", version.ref = "ktor-version" }
 
 [libraries]
@@ -69,6 +70,7 @@ ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor-version" }
 ktor-client-otel = { module = "io.opentelemetry.instrumentation:opentelemetry-ktor-3.0", version.ref = "ktor-otel-version" }
 
+ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor-server-version" }
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor-server-version" }
 ktor-server-core-jvm = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor-server-version" }
 ktor-server-cio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor-server-version" }
