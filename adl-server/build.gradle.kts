@@ -146,7 +146,7 @@ dependencies {
     implementation("org.bouncycastle:bctls-jdk18on:1.78.1")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
     implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
-    implementation("io.ktor:ktor-server-sse:3.3.3")
+    implementation("io.ktor:ktor-server-sse:3.4.1")
 
     // Database (PostgreSQL + Exposed + Flyway)
     implementation(libs.exposed.core)
