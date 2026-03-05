@@ -9,6 +9,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
+import kotlinx.serialization.json.Json
 import org.eclipse.lmos.adl.server.models.OpenAIChatCompletionRequest
 import org.eclipse.lmos.adl.server.models.OpenAIChatCompletionResponse
 import org.eclipse.lmos.adl.server.models.OpenAIChoice
@@ -26,7 +27,8 @@ import java.util.UUID
 fun Route.openAICompletions(assistantAgent: ConversationAgent) {
     route("/v1/chat/completions") {
         post {
-            val request = call.receive<OpenAIChatCompletionRequest>()
+            val requestString = call.receive<String>()
+            val request = Json.decodeFromString<OpenAIChatCompletionRequest>(requestString)
 
             val messages = request.messages.map { msg ->
                 when (msg.role) {
@@ -74,7 +76,7 @@ fun Route.openAICompletions(assistantAgent: ConversationAgent) {
                 usage = OpenAIUsage(0, 0, 0)
             )
             call.response.headers.append("X-Conversation-Id", conversationId)
-            call.respond(response)
+            call.respond(Json.encodeToString(response))
         }
     }
 }
