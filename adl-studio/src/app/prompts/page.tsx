@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useQuery, useMutation } from 'urql';
 import { useSearchParams, useRouter } from 'next/navigation';
 import type { TestCase, PerformanceData, Message, UseCasePrompt as PromptType, ChatHistoryItem } from '@/lib/data';
-import { Loader2, Zap, ArrowLeft, BookText, MessageSquare, FileText, Info, User, Bot, Pencil, Plus } from 'lucide-react';
+import { Loader2, Zap, ArrowLeft, BookText, MessageSquare, FileText, Info, User, Bot, Pencil, Plus, History } from 'lucide-react';
 
 import AppHeader from '@/components/header';
 import PromptEditor from '@/components/prompt-editor';
@@ -25,6 +25,8 @@ import {
 import ExampleUtterances from '@/components/example-utterances';
 import ChatPlayground from '@/components/chat-playground';
 import ChatHistory from '@/components/chat-history';
+import VersionHistory from '@/components/version-history';
+import type { VersionEntry } from '@/components/version-history';
 import { TestsQuery, SearchByIdQuery, GetMcpToolsQuery, ListWidgetsQuery, TagsQuery } from '@/lib/graphql/queries';
 import { NewTestsMutation, StoreADLMutation, ExecuteTestsMutation, DeleteTestCaseMutation, UpdateTestCaseMutation, ExamplesMutation, AddTestCaseMutation, UpdateTagsMutation, UpdateOutputMutation } from '@/lib/graphql/mutations';
 import TagManager from '@/components/tag-manager';
@@ -101,6 +103,7 @@ function PromptEditorPageContent() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [selectedUtterance, setSelectedUtterance] = useState<string | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<ChatHistoryItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -882,6 +885,16 @@ function PromptEditorPageContent() {
                     ))}
                 </SelectContent>
             </Select>
+            {useCaseIdFromUrl && (
+              <Button
+                onClick={() => setIsVersionHistoryOpen(true)}
+                size="sm"
+                variant="outline"
+              >
+                <History className="mr-2 h-4 w-4" />
+                History
+              </Button>
+            )}
             <Button
               onClick={() => setIsHistoryOpen(true)}
               size="sm"
@@ -990,11 +1003,22 @@ function PromptEditorPageContent() {
         onSaveHistory={handleSaveChatHistory}
         onSaveAsTest={handleSaveAsTest}
       />
-      <ChatHistory 
-        isOpen={isHistoryOpen} 
-        onOpenChange={setIsHistoryOpen} 
+      <ChatHistory
+        isOpen={isHistoryOpen}
+        onOpenChange={setIsHistoryOpen}
         history={chatHistory}
-        onHistoryItemClick={handleHistoryItemClick} 
+        onHistoryItemClick={handleHistoryItemClick}
+      />
+      <VersionHistory
+        isOpen={isVersionHistoryOpen}
+        onOpenChange={setIsVersionHistoryOpen}
+        useCaseId={useCaseId}
+        onRevert={(version: VersionEntry) => {
+          setPrompt(version.content);
+          setTags(version.tags || []);
+          setUtterances(version.examples || []);
+          toast({ title: 'Reverted', description: `Loaded version ${version.version} into the editor. Save to apply.` });
+        }}
       />
        <Sheet open={isTestCaseSheetOpen} onOpenChange={handleTestCaseSheetOpenChange}>
           <SheetContent className="w-full sm:max-w-xl flex flex-col">
