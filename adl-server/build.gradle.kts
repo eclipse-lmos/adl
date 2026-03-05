@@ -4,7 +4,7 @@
 
 plugins {
     alias(libs.plugins.ktor)
-    id("org.graalvm.buildtools.native") version "0.11.3"
+    id("org.graalvm.buildtools.native") version "0.11.4"
 }
 
 application {
@@ -82,10 +82,6 @@ graalvmNative {
             buildArgs.add("-H:+ReportUnsupportedElementsAtRuntime")
             buildArgs.add("-H:+ReportExceptionStackTraces")
 
-            val path = "${projectDir}/src/test/resources/META-INF/native-image/"
-            buildArgs.add("-H:ReflectionConfigurationFiles=${path}reflect-config.json")
-            buildArgs.add("-H:ResourceConfigurationFiles=${path}resource-config.json")
-
             imageName.set("adl-server-test")
         }
     }
@@ -95,7 +91,6 @@ dependencies {
     val arcVersion = "0.217.0-M2"
 
     // Arc
-    implementation("org.eclipse.lmos:arc-scripting:$arcVersion")
     implementation("org.eclipse.lmos:arc-azure-client:$arcVersion")
     implementation("org.eclipse.lmos:arc-api:$arcVersion")
     implementation("org.eclipse.lmos:arc-mcp:$arcVersion")
@@ -107,6 +102,8 @@ dependencies {
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
     implementation(libs.ktor.server.websockets)
+    implementation(libs.ktor.server.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.server.static)
     implementation(libs.ktor.server.cors)
     implementation(libs.ktor.server.sse)
