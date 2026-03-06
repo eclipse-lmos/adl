@@ -9,7 +9,7 @@
 
 - Expose a new tool named `get_adl_skill` in the MCP Server.
 - The tool accepts a parameter `user_query` (String).
-- The tool queries the `adl-server` to search for relevant ADLs (Architectural Decision Logs) based on the user query.
+- The tool queries the `adl-server` to search for relevant ADLs based on the user query.
 - The tool returns the content of the most relevant ADL found.
 
 ### Main Flow (step-by-step)
