@@ -18,7 +18,12 @@ interface AdlRepository {
         val adl = get(id) ?: return emptyList()
         val useCases = adl.content.toUseCases()
         return if (adl.output != null) {
-            useCases.map { it.copy(solution = it.solution + Conditional("".addWidgetRef(adl.output))) }
+            useCases.map {
+                it.copy(
+                    solution = it.solution + Conditional("".addWidgetRef(adl.output)),
+                    metadata = it.metadata + mapOf("adlId" to adl.id)
+                )
+            }
         } else {
             useCases
         }

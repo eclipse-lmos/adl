@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.eclipse.lmos.adl.server.agents
 
-import org.eclipse.lmos.arc.assistants.support.usecases.features.plus
 import dev.langchain4j.model.embedding.EmbeddingModel
 import dev.langchain4j.store.embedding.CosineSimilarity
 import org.eclipse.lmos.adl.server.agents.extensions.ConversationGuider
@@ -17,7 +16,6 @@ import org.eclipse.lmos.adl.server.repositories.UseCaseEmbeddingsRepository
 import org.eclipse.lmos.adl.server.repositories.WidgetRepository
 import org.eclipse.lmos.adl.server.services.McpService
 import org.eclipse.lmos.adl.server.services.ClientEventPublisher
-import org.eclipse.lmos.adl.server.repositories.StatisticsRepository
 import org.eclipse.lmos.arc.agents.ConversationAgent
 import org.eclipse.lmos.arc.agents.agents
 import org.eclipse.lmos.arc.agents.conversation.Conversation
@@ -46,13 +44,10 @@ import org.eclipse.lmos.adl.server.agents.filters.Rephraser
 import org.eclipse.lmos.adl.server.agents.filters.SolutionCompliance
 import org.eclipse.lmos.adl.server.agents.filters.StaticResponseFeature
 import org.eclipse.lmos.adl.server.repositories.RolePromptRepository
-import org.eclipse.lmos.arc.agents.dsl.extensions.SystemContextProvider
-import org.eclipse.lmos.arc.agents.dsl.extensions.getCurrentUseCases
 import org.eclipse.lmos.arc.agents.dsl.extensions.memory
 import org.eclipse.lmos.arc.agents.dsl.extensions.system
 import org.eclipse.lmos.arc.agents.dsl.getOptional
 import org.eclipse.lmos.arc.api.AgentRequest
-import org.eclipse.lmos.arc.assistants.support.usecases.Conditional
 import org.eclipse.lmos.arc.assistants.support.usecases.features.mustache
 
 
@@ -104,52 +99,42 @@ fun createAssistantAgent(
             +UnresolvedDetector { "UNRESOLVED" }
         }
         prompt {
-            val roleId = system("role", "default")
-            val role = rolePromptRepository.findById(roleId)?.let {
-                """
-                    ## Role and Responsibilities
-                    ${it.role}
-                    
-                    ## Language & Tone Requirements
-                    ${it.tone}
-                """.trimIndent()
-            } ?: local("role.md")!!
-
-            // Load Use Cases
-            val useCaseTags = getOptional<UseCaseTags>()?.tags?.takeIf { it.isNotEmpty() }
-            val currentUseCases = getOptional<List<UseCase>>() ?: emptyList()
             val message = get<Conversation>().latest<UserMessage>()?.content
 
-            // TODO
-            // val usedUseCases = memory<List<String>>("usedUseCases")?.map {
-            //    adlRepository.getAsUseCases(it.adlId)
-            //
-
-            // TODO fix scoreThreshold
-            val otherUseCases =
-                embeddingsRepository.search(message!!, limit = 7, scoreThreshold = 0.01f, tags = useCaseTags)
+            // Load Use Cases
+            val previousUseCaseMap = memory<Map<String, String>>("useCaseADLMap") ?: emptyMap()
+            val useCaseTags = getOptional<UseCaseTags>()?.tags?.takeIf { it.isNotEmpty() }
+            val paramUseCases = getOptional<List<UseCase>>() ?: emptyList()
+            val matchingUseCases =
+                embeddingsRepository.search(message!!, limit = 7, scoreThreshold = 0.07f, tags = useCaseTags)
                     .distinctBy { it.adlId }
                     .flatMap { adlRepository.getAsUseCases(it.adlId) }
-            info("Loaded ${otherUseCases.size} additional use cases from embeddings store.")
+            info("Loaded ${matchingUseCases.size} additional use cases from embeddings store.")
             val baseUseCases = local("base_use_cases.md")?.toUseCases() ?: emptyList()
+            val loadedUseCases = baseUseCases.filter {
+                paramUseCases.none { bc -> bc.id == it.id }
+                matchingUseCases.none { bc -> bc.id == it.id }
+            } + matchingUseCases.filter {
+                paramUseCases.none { bc -> bc.id == it.id }
+            } + paramUseCases
+            val usedUseCases = memory<List<String>>("usedUseCases")?.filter {
+                loadedUseCases.none { uc -> uc.id == it }
+            }?.mapNotNull { uc ->
+                previousUseCaseMap[uc]?.let { adlRepository.getAsUseCases(it) }
+            }?.flatten() ?: emptyList()
+            val allUseCases = loadedUseCases + usedUseCases
+
+            // Store ADL to UseCase mapping in memory for later retrieval
+            val currentUseCaseMap = allUseCases.mapNotNull { useCase ->
+                useCase.metadata["adlId"]?.let { useCase.id to it }
+            }
+            memory("useCaseADLMap", previousUseCaseMap + currentUseCaseMap)
 
             // Convert steps to conditionals in use cases
-            val stepConverter = StepConverter()
-            val useCases = stepConverter.convert(
-                baseUseCases.filter {
-                    currentUseCases.none { bc -> bc.id == it.id }
-                    otherUseCases.none { bc -> bc.id == it.id }
-                } + otherUseCases.filter {
-                    currentUseCases.none { bc -> bc.id == it.id }
-                } + currentUseCases
-            )
+            val useCases = StepConverter().convert(allUseCases)
 
             // Add tools
-            useCases.forEach { useCase ->
-                useCase.extractTools().forEach {
-                    addTool(it)
-                }
-            }
+            useCases.forEach { useCase -> useCase.extractTools().forEach { addTool(it) } }
 
             // Add conditions
             val systemParams = getOptional<AgentRequest>()?.systemContext?.associate { it.key to it.value }
@@ -232,6 +217,16 @@ fun createAssistantAgent(
                 )
 
             // Output the final prompt
+            val roleId = system("role", "default")
+            val role = rolePromptRepository.findById(roleId)?.let {
+                """
+                    ## Role and Responsibilities
+                    ${it.role}
+                    
+                    ## Language & Tone Requirements
+                    ${it.tone}
+                """.trimIndent()
+            } ?: local("role.md")!!
             val prompt = local("assistant.md")!!
                 .replace("\$\$ROLE\$\$", role)
                 .replace("\$\$USE_CASES\$\$", useCasesPrompt)

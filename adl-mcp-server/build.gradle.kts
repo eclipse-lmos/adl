@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Deutsche Telekom AG and others
+//
+// SPDX-License-Identifier: Apache-2.0
+
 dependencies {
     val arcVersion = "0.217.0-M2"
     val graphqlKotlinVersion = "9.0.0"
