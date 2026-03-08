@@ -40,7 +40,7 @@ export default function AppHeader() {
   };
 
   return (
-    <div className="fixed top-4 left-0 right-0 z-50 px-4 md:px-6 pointer-events-none">
+    <div className="top-4 left-0 right-0 z-50 px-4 md:px-6 pointer-events-none mt-4">
       <header className="mx-auto max-w-7xl h-16 w-full rounded-2xl border bg-background/80 backdrop-blur-md shadow-lg flex items-center justify-between px-4 md:px-6 pointer-events-auto transition-all">
         <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <h1 className="text-lg font-bold tracking-tight text-foreground">
