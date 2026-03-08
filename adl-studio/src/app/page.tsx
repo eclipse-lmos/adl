@@ -1,104 +1,187 @@
-import Link from 'next/link';
-import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText, Zap, BarChart, Sparkles, MessageSquare, ShieldCheck } from 'lucide-react';
+'use client';
+
+import { useState } from 'react';
+import { useQuery, useMutation } from 'urql';
+import { useRouter } from 'next/navigation';
+import { Plus, Loader2, Pencil, Trash2, Bot, Server, Cpu } from 'lucide-react';
 import AppHeader from '@/components/header';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { ListAgentsQuery } from '@/lib/graphql/queries';
+import { DeleteAgentMutation } from '@/lib/graphql/mutations';
+import type { Agent } from '@/lib/data';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { cn } from '@/lib/utils';
 
-export default function ProductPage() {
-  const features = [
-    {
-      icon: <FileText className="h-8 w-8 text-primary" />,
-      title: 'Advanced Prompt Authoring',
-      description: 'Craft and manage complex prompts with a powerful, structured editor designed for clarity and control.',
-    },
-    {
-      icon: <Zap className="h-8 w-8 text-primary" />,
-      title: 'Automated Testing',
-      description: 'Define test cases and run them against your prompts to ensure consistent and reliable behavior.',
-    },
-    {
-      icon: <BarChart className="h-8 w-8 text-primary" />,
-      title: 'Performance Analytics',
-      description: 'Get detailed performance metrics and scores for your prompts to identify areas for improvement.',
-    },
-    {
-      icon: <Sparkles className="h-8 w-8 text-primary" />,
-      title: 'AI-Powered Suggestions',
-      description: 'Leverage AI to get suggestions for improving your prompts and generating new test cases automatically.',
-    },
-    {
-      icon: <MessageSquare className="h-8 w-8 text-primary" />,
-      title: 'Interactive Chat Playground',
-      description: 'Test your prompts in a real-time chat interface to see how they perform in a conversational context.',
-    },
-    {
-      icon: <ShieldCheck className="h-8 w-8 text-primary" />,
-      title: 'Contract-Based Reliability',
-      description: 'Enforce critical tests as contracts to ensure your most important use cases never break at runtime.',
-    },
-  ];
+export default function AgentManagementPage() {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
 
-  const heroImage = PlaceHolderImages.find(p => p.id === 'hero-abstract');
-  const editorScreenshot = PlaceHolderImages.find(p => p.id === 'screenshot-editor');
-  const analyticsScreenshot = PlaceHolderImages.find(p => p.id === 'screenshot-analytics');
+  const [agentsResult, reexecuteAgents] = useQuery({ 
+    query: ListAgentsQuery,
+    requestPolicy: 'cache-and-network' 
+  });
+  const { data, fetching, error } = agentsResult;
+
+  const [deleteAgentResult, executeDeleteAgent] = useMutation(DeleteAgentMutation);
+
+  const agents: Agent[] = data?.agents || [];
+
+  const handleOpenNew = () => {
+    router.push('/agents/edit');
+  };
+
+  const handleEdit = (agent: Agent) => {
+    router.push(`/agents/edit?id=${agent.id}`);
+  };
+
+  const handleDeleteClick = (agent: Agent) => {
+    setAgentToDelete(agent);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!agentToDelete) return;
+    const result = await executeDeleteAgent({ id: agentToDelete.id });
+    if (result.error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error deleting agent',
+        description: result.error.message,
+      });
+    } else {
+      toast({ title: 'Agent deleted' });
+      reexecuteAgents({ requestPolicy: 'network-only' });
+    }
+    setIsDeleteDialogOpen(false);
+    setAgentToDelete(null);
+  };
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
       <AppHeader />
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="w-full py-20 md:py-32 lg:py-40 bg-gradient-to-b from-background to-muted/50">
-          <div className="container mx-auto px-4 md:px-6">
-            <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
-              <div className="flex flex-col justify-center space-y-4">
-                <div className="space-y-2">
-                  <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
-                    Build Reliable AI with ADL Studio
-                  </h1>
-                  <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                    An advanced platform for authoring, testing, and optimizing your large language model prompts. Ship with confidence.
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                  <Link href="/dashboard">
-                    <Button size="lg">Go to Dashboard</Button>
-                  </Link>
-                </div>
-              </div>
-            </div>
+      <main className="flex-1 container mx-auto py-8 px-4 md:px-6">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Agent Management</h1>
+            <p className="text-muted-foreground mt-1">Configure and manage your AI agent fleet.</p>
           </div>
-        </section>
+          <Button onClick={handleOpenNew}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Agent
+          </Button>
+        </div>
 
-        {/* Features Section */}
-        <section id="features" className="w-full py-12 md:py-24 lg:py-32">
-          <div className="container mx-auto px-4 md:px-6">
-            <div className="flex flex-col items-center justify-center space-y-4 text-center">
-              <div className="space-y-2">
-                <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Key Features</div>
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Everything You Need to Build Better Prompts</h2>
-                <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                  From authoring and testing to AI-powered optimization, ADL Studio provides a comprehensive suite of tools for prompt engineering.
-                </p>
-              </div>
-            </div>
-            <div className="mx-auto grid max-w-5xl items-start gap-8 sm:grid-cols-2 md:gap-12 lg:grid-cols-3 lg:max-w-none mt-12">
-              {features.map((feature, index) => (
-                <Card key={index}>
-                  <CardHeader className="flex flex-row items-center gap-4">
-                    {feature.icon}
-                    <CardTitle>{feature.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">{feature.description}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+        {fetching && agents.length === 0 ? (
+          <div className="flex h-64 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        </section>
-      </main>    
+        ) : error ? (
+          <div className="p-6 border border-destructive/50 rounded-lg bg-destructive/10 text-destructive">
+            <h2 className="font-bold">Error loading agents</h2>
+            <p>{error.message}</p>
+          </div>
+        ) : agents.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {agents.map((agent) => (
+              <Card key={agent.id} className="flex flex-col group transition-all hover:shadow-xl">
+                <CardHeader className="relative">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                          <Bot className="h-6 w-6 text-primary" />
+                        </div>
+                        <div 
+                          className={cn(
+                            "absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-background",
+                            agent.active ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"
+                          )} 
+                        />
+                      </div>
+                      <CardTitle className="text-xl">{agent.name}</CardTitle>
+                    </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(agent)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteClick(agent)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <CardDescription className="mt-2 line-clamp-2 min-h-[2.5rem]">
+                    {agent.description || "No description provided."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 space-y-4">
+                  {agent.tags && agent.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {agent.tags.map(tag => (
+                        <Badge key={tag} variant="secondary" className="px-2 py-0">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground border-t pt-4">
+                    <div className="flex items-center gap-2">
+                      <Cpu className="h-3 w-3" />
+                      <span>{agent.models?.length || 0} Models</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Server className="h-3 w-3" />
+                      <span>{agent.mcpServers?.length || 0} MCP Servers</span>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="border-t pt-4 bg-muted/30">
+                  <Button variant="outline" className="w-full text-xs" onClick={() => handleEdit(agent)}>
+                    Configure Settings
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed rounded-xl bg-muted/20">
+            <Bot className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
+            <p className="text-muted-foreground">No agents found. Create your first one to get started.</p>
+            <Button variant="outline" className="mt-4" onClick={handleOpenNew}>Create Agent</Button>
+          </div>
+        )}
+      </main>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the agent "<strong>{agentToDelete?.name}</strong>". 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleteAgentResult.fetching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Delete Agent'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

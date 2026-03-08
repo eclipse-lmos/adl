@@ -1,11 +1,20 @@
 'use client';
 
 import Link from "next/link";
-import { Settings, LogOut, User as UserIcon, BarChart3 } from "lucide-react";
-import { Icons } from "@/components/icons";
+import { 
+  Settings, 
+  LogOut, 
+  User as UserIcon, 
+  BarChart3, 
+  Bot, 
+  FileJson, 
+  LayoutTemplate, 
+  Users, 
+  MessageSquare 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUser, useAuth } from '@/firebase';
-import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { signOut } from 'firebase/auth';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -21,16 +30,6 @@ export default function AppHeader() {
   const { user, loading } = useUser();
   const auth = useAuth();
 
-  const handleLogin = async () => {
-    if (!auth) return;
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Login failed:", error);
-    }
-  };
-
   const handleLogout = async () => {
     if (!auth) return;
     try {
@@ -41,72 +40,88 @@ export default function AppHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-10 w-full border-b bg-background/95 backdrop-blur-sm">
-      <div className="flex h-16 items-center justify-between px-4 md:px-6">
-        <Link href="/" className="flex items-center gap-3">
-          <Icons.logo className="h-7 w-7 text-primary" />
+    <div className="fixed top-4 left-0 right-0 z-50 px-4 md:px-6 pointer-events-none">
+      <header className="mx-auto max-w-7xl h-16 w-full rounded-2xl border bg-background/80 backdrop-blur-md shadow-lg flex items-center justify-between px-4 md:px-6 pointer-events-auto transition-all">
+        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <h1 className="text-lg font-bold tracking-tight text-foreground">
             ADL Studio
           </h1>
         </Link>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          <Link href="/">
+            <Button variant="ghost" size="sm" className="rounded-full border border-transparent hover:border-border px-4 transition-all">
+              <Bot className="mr-2 h-4 w-4 text-primary" />
+              <span className="hidden md:inline">Agents</span>
+            </Button>
+          </Link>
           <Link href="/analytics">
-            <Button variant="ghost" size="sm">
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Analytics
+            <Button variant="ghost" size="sm" className="rounded-full border border-transparent hover:border-border px-4 transition-all">
+              <BarChart3 className="mr-2 h-4 w-4 text-primary" />
+              <span className="hidden md:inline">Analytics</span>
             </Button>
           </Link>
           <Link href="/dashboard">
-            <Button variant="ghost" size="sm">ADL</Button>
+            <Button variant="ghost" size="sm" className="rounded-full border border-transparent hover:border-border px-4 transition-all">
+              <FileJson className="mr-2 h-4 w-4 text-primary" />
+              <span className="hidden md:inline">ADL</span>
+            </Button>
           </Link>
           <Link href="/widgets">
-            <Button variant="ghost" size="sm">Widgets</Button>
+            <Button variant="ghost" size="sm" className="rounded-full border border-transparent hover:border-border px-4 transition-all">
+              <LayoutTemplate className="mr-2 h-4 w-4 text-primary" />
+              <span className="hidden md:inline">Widgets</span>
+            </Button>
           </Link>
           <Link href="/roles">
-            <Button variant="ghost" size="sm">Roles</Button>
+            <Button variant="ghost" size="sm" className="rounded-full border border-transparent hover:border-border px-4 transition-all">
+              <Users className="mr-2 h-4 w-4 text-primary" />
+              <span className="hidden md:inline">Roles</span>
+            </Button>
           </Link>
           <Link href="/assistant">
-            <Button variant="ghost" size="sm">Assistant</Button>
+            <Button variant="ghost" size="sm" className="rounded-full border border-transparent hover:border-border px-4 transition-all">
+              <MessageSquare className="mr-2 h-4 w-4 text-primary" />
+              <span className="hidden md:inline">Assistant</span>
+            </Button>
           </Link>
           
-          <Separator orientation="vertical" className="h-6 mx-1" />
+          <Separator orientation="vertical" className="h-6 mx-1 hidden md:block" />
           
           <Link href="/settings">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="rounded-full border border-transparent hover:border-border transition-all">
               <Settings className="h-5 w-5" />
               <span className="sr-only">Settings</span>
             </Button>
           </Link>
 
-          {!loading && (
-            user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full ml-2">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.photoURL || ''} alt={user.displayName || ''} />
-                      <AvatarFallback>{user.displayName?.[0] || <UserIcon />}</AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{user.displayName}</p>
-                      <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:bg-destructive focus:text-destructive-foreground">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : ""
+          {!loading && user && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-9 w-9 rounded-full ml-1 border hover:border-primary/50 transition-colors p-0 overflow-hidden">
+                  <Avatar className="h-full w-full">
+                    <AvatarImage src={user.photoURL || ''} alt={user.displayName || ''} />
+                    <AvatarFallback className="bg-primary/5">{user.displayName?.[0] || <UserIcon className="h-4 w-4" />}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 mt-2" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{user.displayName}</p>
+                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:bg-destructive focus:text-destructive-foreground cursor-pointer">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
-      </div>
-    </header>
+      </header>
+    </div>
   );
 }

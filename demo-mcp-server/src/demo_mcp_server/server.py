@@ -20,45 +20,86 @@ def create_server(*, host: str = "127.0.0.1", port: int = 8000) -> FastMCP:
     )
 
     @server.tool(
-        name="get_car_deals",
+        name="get_weather",
         description=(
-            "Return a formatted string with demo car deals. "
-        ),
+                "Return a formatted string with the current weather for a given location. "
+        )
     )
-    def get_car_deals(
-        price_range: int,
-        sell_current_car: bool,
-    ) -> str:
+    def get_weather(location: str) -> str:
         return """
             {
-                "id": "deal-vw-id3-2024",
-                "brand": "Volkswagen",
-                "model": "ID.3 Pro",
+                "location": "Berlin",
+                "temperature_celsius": 22,
+                "condition": "Partly Cloudy"
+            }
+        """
+
+    @server.tool(
+        name="get_car_deals",
+        description=(
+                "Return a formatted string with demo car deals. "
+        ),
+    )
+    def get_car_deals(price_range: int, sell_current_car: bool) -> str:
+        return ("""
+            {
+                "id": "deal-id",
+                "brand": "WW",
+                "model": "ID1",
                 "price_eur": 31990
             },
             {
-                "id": "deal-skoda-octavia-2023",
-                "brand": "Skoda",
-                "model": "Octavia Combi",
+                "id": "deal-oct",
+                "brand": "Skada",
+                "model": "Oct01",
                 "price_eur": 28450
             },
             {
-                "id": "deal-bmw-x1-2024",
-                "brand": "BMW",
-                "model": "X1 xDrive25e",
+                "id": "deal-bm",
+                "brand": "BOW",
+                "model": "X0",
                 "price_eur": 45900
             },
             {
-                "id": "deal-hyundai-kona-2024",
-                "brand": "Hyundai",
-                "model": "Kona Hybrid",
+                "id": "deal-hyun",
+                "brand": "Hundra",
+                "model": "Hybrid",
                 "price_eur": 33200
             },
             {
-                "id": "deal-volvo-xc60-2023",
-                "brand": "Volvo",
-                "model": "XC60 B5 AWD",
+                "id": "deal-vo",
+                "brand": "Welche",
+                "model": "AWD",
                 "price_eur": 49800
+            }
+        )
+        """
+
+    @server.tool(
+        name="get_car_deals_elite",
+        description=(
+                "Return a formatted string with demo car deals. "
+        ),
+    ))
+    def get_car_deals_elite(price_range: int, sell_current_car: bool) -> str:
+        return """
+            {
+                "id": "spider-excel",
+                "brand": "Panda",
+                "model": "Pro1",
+                "price_eur": 310990
+            },
+            {
+                "id": "lodge-raptor",
+                "brand": "Feri",
+                "model": "A3",
+                "price_eur": 284050
+            },
+            {
+                "id": "deal-bmw-x1-2024",
+                "brand": "Steal",
+                "model": "X2",
+                "price_eur": 459000
             }
         )
         """
@@ -68,4 +109,3 @@ def create_server(*, host: str = "127.0.0.1", port: int = 8000) -> FastMCP:
         return JSONResponse({"status": "ok", "tools": ["get_car_deals"]})
 
     return server
-

@@ -57,6 +57,7 @@ export default function TagManager({ tags, onTagsChange, availableTags = [] }: T
               onChange={(e) => setNewTag(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
+                  e.preventDefault();
                   handleAddTag(newTag);
                   setNewTag('');
                 }
@@ -64,6 +65,7 @@ export default function TagManager({ tags, onTagsChange, availableTags = [] }: T
               className="h-8"
             />
             <Button
+              type="button"
               size="sm"
               variant="secondary"
               onClick={() => {
@@ -81,7 +83,11 @@ export default function TagManager({ tags, onTagsChange, availableTags = [] }: T
             {tags.map(tag => (
               <Badge key={tag} variant="secondary" className="flex items-center gap-1 py-0.5 px-2">
                 {tag}
-                <button onClick={() => handleRemoveTag(tag)} className="rounded-full hover:bg-muted-foreground/20">
+                <button 
+                  type="button" 
+                  onClick={() => handleRemoveTag(tag)} 
+                  className="rounded-full hover:bg-muted-foreground/20"
+                >
                   <X className="h-3 w-3" />
                   <span className="sr-only">Remove {tag}</span>
                 </button>
@@ -101,6 +107,7 @@ export default function TagManager({ tags, onTagsChange, availableTags = [] }: T
                     filteredAvailableTags.map((tag) => (
                       <button
                         key={tag}
+                        type="button"
                         onClick={() => handleAddTag(tag)}
                         className={cn(
                           "flex items-center justify-between px-2 py-1.5 text-xs rounded-md hover:bg-muted text-left transition-colors",
@@ -113,7 +120,7 @@ export default function TagManager({ tags, onTagsChange, availableTags = [] }: T
                     ))
                   ) : (
                     <p className="text-[10px] text-muted-foreground text-center py-4">
-                      All tags selected
+                      All available tags are selected
                     </p>
                   )}
                 </div>

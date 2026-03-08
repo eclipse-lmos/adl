@@ -224,3 +224,25 @@ export const UpdateOutputMutation = `
     }
   }
 `;
+
+export const SaveAgentMutation = `
+  mutation SaveAgent($input: SaveAgentInput!) {
+    saveAgent(input: $input) {
+      id
+      name
+      description
+      models
+      tags
+      mcpServers
+      role
+      corePrompt
+      active
+    }
+  }
+`;
+
+export const DeleteAgentMutation = `
+  mutation DeleteAgent($id: String!) {
+    deleteAgent(id: $id)
+  }
+`;

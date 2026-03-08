@@ -51,4 +51,14 @@ export type ChatHistoryItem = {
   prompt: string;
 };
 
-    
+export type Agent = {
+  id: string;
+  name: string;
+  description?: string | null;
+  models?: string[] | null;
+  tags?: string[] | null;
+  mcpServers?: string[] | null;
+  role?: string | null;
+  corePrompt?: string | null;
+  active?: boolean | null;
+};

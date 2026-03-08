@@ -147,3 +147,35 @@ export const DiffVersionsQuery = `
     }
   }
 `;
+
+export const ListAgentsQuery = `
+  query ListAgents {
+    agents {
+      id
+      name
+      description
+      models
+      tags
+      mcpServers
+      role
+      corePrompt
+      active
+    }
+  }
+`;
+
+export const GetAgentQuery = `
+  query GetAgent($id: String!) {
+    agent(id: $id) {
+      id
+      name
+      description
+      models
+      tags
+      mcpServers
+      role
+      corePrompt
+      active
+    }
+  }
+`;

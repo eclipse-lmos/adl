@@ -36,6 +36,7 @@ import org.eclipse.lmos.adl.server.inbound.mutation.AdlEvalMutation
 import org.eclipse.lmos.adl.server.inbound.mutation.AdlExampleMutation
 import org.eclipse.lmos.adl.server.inbound.mutation.AdlStorageMutation
 import org.eclipse.lmos.adl.server.inbound.mutation.AdlValidationMutation
+import org.eclipse.lmos.adl.server.inbound.mutation.AgentMutation
 import org.eclipse.lmos.adl.server.inbound.mutation.McpMutation
 import org.eclipse.lmos.adl.server.inbound.mutation.RolePromptMutation
 import org.eclipse.lmos.adl.server.inbound.mutation.SpellingMutation
@@ -45,6 +46,7 @@ import org.eclipse.lmos.adl.server.inbound.mutation.UseCaseImprovementMutation
 import org.eclipse.lmos.adl.server.inbound.mutation.UserSettingsMutation
 import org.eclipse.lmos.adl.server.inbound.mutation.WidgetsMutation
 import org.eclipse.lmos.adl.server.inbound.query.AdlQuery
+import org.eclipse.lmos.adl.server.inbound.query.AgentQuery
 import org.eclipse.lmos.adl.server.inbound.query.DashboardQuery
 import org.eclipse.lmos.adl.server.inbound.query.McpToolsQuery
 import org.eclipse.lmos.adl.server.inbound.query.RolePromptQuery
@@ -55,6 +57,7 @@ import org.eclipse.lmos.adl.server.inbound.query.TagsQuery
 import org.eclipse.lmos.adl.server.inbound.rest.clientEvents
 import org.eclipse.lmos.adl.server.inbound.rest.openAICompletions
 import org.eclipse.lmos.adl.server.repositories.AdlRepository
+import org.eclipse.lmos.adl.server.repositories.AgentRepository
 import org.eclipse.lmos.adl.server.repositories.RolePromptRepository
 import org.eclipse.lmos.adl.server.repositories.UseCaseEmbeddingsRepository
 import org.eclipse.lmos.adl.server.repositories.impl.FileSystemAdlRepository
@@ -63,6 +66,7 @@ import org.eclipse.lmos.adl.server.repositories.impl.db.PostgresAdlRepository
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.flywaydb.core.Flyway
+import org.eclipse.lmos.adl.server.repositories.impl.InMemoryAgentRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryRolePromptRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryStatisticsRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryTestCaseRepository
@@ -109,6 +113,7 @@ fun startServer(
         else -> InMemoryAdlRepository()
     }
     val rolePromptRepository: RolePromptRepository = InMemoryRolePromptRepository()
+    val agentRepository: AgentRepository = InMemoryAgentRepository()
     val mcpService = McpService()
     val testCaseRepository = InMemoryTestCaseRepository()
     val userSettingsRepository = InMemoryUserSettingsRepository()
@@ -183,6 +188,7 @@ fun startServer(
                 )
                 queries = listOf(
                     AdlQuery(embeddingStore, adlStorage),
+                    AgentQuery(agentRepository),
                     McpToolsQuery(mcpService),
                     TestCaseQuery(testCaseRepository),
                     UserSettingsQuery(userSettingsRepository),
@@ -195,6 +201,7 @@ fun startServer(
                     AdlCompilerMutation(),
                     SystemPromptMutation(sessions, templateLoader, rolePromptRepository),
                     AdlStorageMutation(embeddingStore, adlStorage, tagRepository),
+                    AgentMutation(agentRepository),
                     McpMutation(mcpService),
                     UserSettingsMutation(userSettingsRepository, completerProvider),
                     UseCaseImprovementMutation(improvementAgent),
