@@ -4,6 +4,8 @@
 
 services:
   adl-server:
+    build:
+      context: ./adl-server
     image: ghcr.io/eclipse-lmos/adl-server:latest
     ports:
       - "8080:8080"
@@ -23,6 +25,8 @@ services:
       - adl-network
 
   demo-mcp:
+    build:
+      context: ./demo-mcp-server
     image: ghcr.io/eclipse-lmos/demo-mcp:latest
     ports:
       - "8088:8088"

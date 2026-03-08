@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Deutsche Telekom AG and others
+#
+# SPDX-License-Identifier: Apache-2.0
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+.DS_Store
+tests/
+

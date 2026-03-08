@@ -58,9 +58,9 @@ bin/
 .idea/
 /adl-server/qdrant_storage/
 /.gradle/
-/.gradle/
 /ald-studio/node_modules/
 /ald-studio/.next/
 /adl-studio/node_modules/
 /adl-studio/.next/
 /examples/langchain-python/.venv/
+/demo-mcp-server/.venv/
