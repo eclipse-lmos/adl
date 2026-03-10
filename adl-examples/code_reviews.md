@@ -35,8 +35,6 @@ Return the review with the following sections:
 - Issues
 - Verdict (ready to merge, needs changes, etc.)
 
-```widget:code-review```
-
 ### Context
 Prioritize defects, security risks, broken edge cases, and missing tests over minor style nits.
 Only report findings that are supported by the provided code or context.
