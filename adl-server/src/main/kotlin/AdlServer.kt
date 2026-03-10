@@ -73,6 +73,7 @@ import org.eclipse.lmos.adl.server.repositories.impl.InMemoryTestCaseRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryUseCaseEmbeddingsStore
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryUserSettingsRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryWidgetRepository
+import org.eclipse.lmos.adl.server.repositories.impl.FileSystemWidgetRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryTagRepository
 import org.eclipse.lmos.adl.server.services.ClientEventPublisher
 import org.eclipse.lmos.adl.server.services.ConversationEvaluator
@@ -108,6 +109,7 @@ fun startServer(
             Flyway.configure().dataSource(dataSource).load().migrate()
             PostgresAdlRepository(dataSource)
         }
+
         EnvConfig.adlFolder != null -> FileSystemAdlRepository(File(EnvConfig.adlFolder!!))
         File("adls").exists() -> FileSystemAdlRepository(File("adls"))
         else -> InMemoryAdlRepository()
@@ -117,7 +119,11 @@ fun startServer(
     val mcpService = McpService()
     val testCaseRepository = InMemoryTestCaseRepository()
     val userSettingsRepository = InMemoryUserSettingsRepository()
-    val widgetRepository = InMemoryWidgetRepository()
+    val widgetRepository = when {
+        EnvConfig.widgetFolder != null -> FileSystemWidgetRepository(File(EnvConfig.widgetFolder!!))
+        File("widgets").exists() -> FileSystemWidgetRepository(File("widgets"))
+        else -> InMemoryWidgetRepository()
+    }
     val clientEventPublisher = ClientEventPublisher()
     val completerProvider = UserDefinedCompleterProvider()
     val statisticsRepository = InMemoryStatisticsRepository()
@@ -216,7 +222,7 @@ fun startServer(
                         testVariantAgent
                     ),
                     AdlValidationMutation(),
-                    AdlAssistantMutation(assistantAgent, adlStorage, statisticsRepository),
+                    AdlAssistantMutation(assistantAgent, adlStorage, statisticsRepository, userSettingsRepository),
                     WidgetsMutation(facesAgent, widgetRepository),
                     RolePromptMutation(rolePromptRepository),
                 )

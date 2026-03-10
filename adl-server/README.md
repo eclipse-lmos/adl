@@ -28,6 +28,8 @@ The server can be configured using the following environment variables:
 | `QDRANT_HOST` | Qdrant vector database host. | `localhost` |
 | `QDRANT_PORT` | Qdrant vector database port. | `6334` |
 | `QDRANT_COLLECTION_NAME` | Qdrant collection name for UseCase embeddings. | `usecase_embeddings` |
+| `ADL_FOLDER` | Optional folder for file-based ADL storage. | unset |
+| `WIDGET_FOLDER` | Optional folder for file-based widget storage. | unset |
 
 ### Start the Server
 

@@ -21,10 +21,10 @@ Politely let the customer know their request is outside the scope of your assist
 
 ### UseCase: customer_inquiry
 #### Description
-The customer is asking whether you can assist with a specific topic or service.
+The customer is asking if you can assist with a specific topic or issue.
 
 #### Solution
-If there is a relevant use case, confirm that you can assist with that topic.
+Check for a relevant use case. If one exists, confirm that you can assist with that topic.
 If not, inform the customer that their request is outside the scope of your assistance.
 
 #### Examples

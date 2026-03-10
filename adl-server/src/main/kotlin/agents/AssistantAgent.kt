@@ -130,6 +130,8 @@ fun createAssistantAgent(
             }
             memory("useCaseADLMap", previousUseCaseMap + currentUseCaseMap)
 
+            info("Using ${allUseCases.map { it.id }} use cases for prompt generation.")
+
             // Convert steps to conditionals in use cases
             val useCases = StepConverter().convert(allUseCases)
 

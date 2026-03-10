@@ -6,10 +6,14 @@ package org.eclipse.lmos.adl.server.inbound.mutation
 
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Mutation
+import graphql.GraphQLError
+import graphql.execution.DataFetcherResult
 import kotlinx.serialization.Serializable
 import org.eclipse.lmos.adl.server.agents.UseCaseTags
+import org.eclipse.lmos.adl.server.models.UserSettings
 import org.eclipse.lmos.adl.server.repositories.AdlRepository
 import org.eclipse.lmos.adl.server.repositories.StatisticsRepository
+import org.eclipse.lmos.adl.server.repositories.UserSettingsRepository
 import org.eclipse.lmos.arc.agents.ConversationAgent
 import org.eclipse.lmos.arc.agents.User
 import org.eclipse.lmos.arc.agents.conversation.AssistantMessage
@@ -33,7 +37,8 @@ import java.time.Duration
 class AdlAssistantMutation(
     private val assistantAgent: ConversationAgent,
     private val adlStorage: AdlRepository,
-    private val statisticsRepository: StatisticsRepository
+    private val statisticsRepository: StatisticsRepository,
+    private val settingsRepository: UserSettingsRepository
 ) : Mutation {
 
     private val log = org.slf4j.LoggerFactory.getLogger(this.javaClass)
@@ -41,8 +46,19 @@ class AdlAssistantMutation(
     @GraphQLDescription("Calls the assistant agent")
     suspend fun assistant(
         @GraphQLDescription("The assistant input") input: AssistantInput,
-    ): AgentResult {
+    ): DataFetcherResult<AgentResult> {
         log.info("Received assistant request with useCases: ${input.request.conversationContext.conversationId}")
+
+        if (settingsRepository.get() == null) {
+            return DataFetcherResult.newResult<AgentResult>()
+                .error(
+                    GraphQLError.newError()
+                        .message("Please set your API key and model name in the settings.")
+                        .build()
+                )
+                .build()
+        }
+
         val useCases =
             input.useCasesId?.let { adlStorage.getAsUseCases(it) } ?: input.useCases?.toUseCases() ?: emptyList()
         val request = input.request
@@ -78,7 +94,7 @@ class AdlAssistantMutation(
             }
         }
 
-        return when (result) {
+        val response = when (result) {
             is Success -> {
                 val outputMessage = result.value.latest<AssistantMessage>()
                 AgentResult(
@@ -93,6 +109,7 @@ class AdlAssistantMutation(
 
             is Failure -> throw result.reason
         }
+        return DataFetcherResult.newResult<AgentResult>().data(response).build()
     }
 }
 

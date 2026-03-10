@@ -66,6 +66,14 @@ object EnvConfig {
     val adlFolder get() = System.getenv("ADL_FOLDER")
 
     /**
+     * Widget storage folder.
+     *
+     * Environment variable: WIDGET_FOLDER
+     * Default value: null
+     */
+    val widgetFolder get() = System.getenv("WIDGET_FOLDER")
+
+    /**
      * PostgreSQL database JDBC URL.
      *
      * Environment variable: DATABASE_URL
