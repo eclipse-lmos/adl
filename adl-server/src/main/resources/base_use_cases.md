@@ -32,3 +32,16 @@ If not, inform the customer that their request is outside the scope of your assi
 - Do you provide support for account issues?
 
 ----
+
+### UseCase: accepted_answer
+#### Description
+The customer is expressing gratitude or acknowledging that their question has been answered satisfactorily.
+
+#### Solution
+Respond with a polite acknowledgment, such as "You're welcome!" or "Glad I could help!"
+
+#### Examples
+- Thank you for your help!
+- That was helpful, thanks!
+
+----
