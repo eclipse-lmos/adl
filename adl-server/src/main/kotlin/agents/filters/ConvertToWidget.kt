@@ -54,10 +54,9 @@ class ConvertToWidget(
     ): ConversationMessage {
         return context.getCurrentUseCases()?.currentUseCase()?.let { useCase ->
             try {
-                val widgetName = useCase.solution.last().text.extractWidgetRef() ?: return message
+                val widgetName = useCase.solution.joinToString().extractWidgetRef() ?: return message
                 val widget =
-                    widgetRepository.findById(widgetName) ?: widgetRepository.findByName(widgetName).firstOrNull()
-                    ?: return message
+                    widgetRepository.findById(widgetName) ?: widgetRepository.findById(widgetName) ?: return message
 
                 val data = context.llm(
                     system = prompt.replace("{{schema}}", widget.jsonSchema),
@@ -95,9 +94,11 @@ class ConvertToWidget(
                 is Collection<*> -> value.isNotEmpty() && value.any { item ->
                     item != null && (item !is Map<*, *> || hasDataValues(item))
                 }
+
                 is Array<*> -> value.isNotEmpty() && value.any { item ->
                     item != null && (item !is Map<*, *> || hasDataValues(item))
                 }
+
                 is String -> value.isNotBlank()
                 else -> true
             }
