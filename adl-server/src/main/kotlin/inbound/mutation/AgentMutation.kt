@@ -6,6 +6,8 @@ package org.eclipse.lmos.adl.server.inbound.mutation
 
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Mutation
+import graphql.schema.DataFetchingEnvironment
+import org.eclipse.lmos.adl.server.withRequestOwnerBlocking
 import org.eclipse.lmos.adl.server.models.Agent
 import org.eclipse.lmos.adl.server.repositories.AgentRepository
 import java.util.UUID
@@ -14,28 +16,32 @@ class AgentMutation(private val agentRepository: AgentRepository) : Mutation {
 
     @GraphQLDescription("Creates or updates an agent.")
     fun saveAgent(
-        @GraphQLDescription("The agent to save") input: SaveAgentInput
+        @GraphQLDescription("The agent to save") input: SaveAgentInput,
+        environment: DataFetchingEnvironment? = null,
     ): Agent {
-        require(input.name.isNotBlank()) { "Agent name must not be blank." }
+        return withRequestOwnerBlocking(environment) {
+            require(input.name.isNotBlank()) { "Agent name must not be blank." }
 
-        val agent = Agent(
-            id = input.id ?: UUID.randomUUID().toString(),
-            name = input.name,
-            active = input.active,
-            description = input.description,
-            models = input.models,
-            tags = input.tags,
-            mcpServers = input.mcpServers,
-            role = input.role,
-            corePrompt = input.corePrompt,
-        )
-        return agentRepository.save(agent)
+            val agent = Agent(
+                id = input.id ?: UUID.randomUUID().toString(),
+                name = input.name,
+                active = input.active,
+                description = input.description,
+                models = input.models,
+                tags = input.tags,
+                mcpServers = input.mcpServers,
+                role = input.role,
+                corePrompt = input.corePrompt,
+            )
+            agentRepository.save(agent)
+        }
     }
 
     @GraphQLDescription("Deletes an agent.")
     fun deleteAgent(
-        @GraphQLDescription("The unique identifier of the agent") id: String
-    ): Boolean = agentRepository.delete(id)
+        @GraphQLDescription("The unique identifier of the agent") id: String,
+        environment: DataFetchingEnvironment? = null,
+    ): Boolean = withRequestOwnerBlocking(environment) { agentRepository.delete(id) }
 }
 
 @GraphQLDescription("Input for creating or updating an agent")

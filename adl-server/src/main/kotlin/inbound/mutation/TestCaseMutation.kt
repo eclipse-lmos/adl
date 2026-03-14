@@ -6,7 +6,9 @@ package org.eclipse.lmos.adl.server.inbound.mutation
 
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Mutation
+import graphql.schema.DataFetchingEnvironment
 import kotlinx.serialization.Serializable
+import org.eclipse.lmos.adl.server.withRequestOwner
 import org.eclipse.lmos.adl.server.agents.TestVariant
 import org.eclipse.lmos.adl.server.models.TestCase
 import org.eclipse.lmos.adl.server.models.TestRunResult
@@ -47,19 +49,111 @@ class TestCreatorMutation(
     @GraphQLDescription("Generates test cases for a provided Use Case and stores them in the repository.")
     suspend fun newTests(
         @GraphQLDescription("The ADL identifier") id: String,
+        environment: DataFetchingEnvironment? = null,
     ): NewTestsResponse {
-        val useCases = adlRepository.get(id)?.content?.toUseCases() ?: error("No adl found with id: $id")
-        val testCases = useCases.flatMap { useCase ->
-            testCreatorAgent.process<TestCreatorInput, List<TestCase>>(TestCreatorInput(useCase.toString()))
-                .getOrThrow().map {
-                    it.copy(useCaseId = useCase.id, adlId = id)
+        return withRequestOwner(environment) {
+            val useCases = adlRepository.get(id)?.content?.toUseCases() ?: error("No adl found with id: $id")
+            val testCases = useCases.flatMap { useCase ->
+                testCreatorAgent.process<TestCreatorInput, List<TestCase>>(TestCreatorInput(useCase.toString()))
+                    .getOrThrow().map {
+                        it.copy(useCaseId = useCase.id, adlId = id)
+                    }
+            }.map { testCase ->
+                val variants =
+                    testVariantAgent.process<String, TestVariant>(testCase.expectedConversation.filter { it.role == "user" }
+                        .joinToString { "- ${it.content}" }).getOrThrow()
+                log.info("Generated variants for test case ${testCase.id}: $variants")
+
+                val newVariants = mutableListOf<List<ConversationTurn>>()
+                repeat(8) { i ->
+                    newVariants += testCase.expectedConversation.map { turn ->
+                        if (turn.role == "user") {
+                            val variantContent = variants.variants[turn.content]?.getOrNull(i) ?: turn.content
+                            turn.copy(content = variantContent)
+                        } else {
+                            turn
+                        }
+                    }
                 }
-        }.map { testCase ->
+                testCase.copy(variants = newVariants)
+            }
+
+            testCaseRepository.saveAll(testCases)
+            NewTestsResponse(testCases.size)
+        }
+    }
+
+    @GraphQLDescription("Executes tests for a given Use Case.")
+    suspend fun executeTests(
+        @GraphQLDescription("The ADL identifier") adlId: String,
+        @GraphQLDescription("The Test Case ID") testCaseId: String? = null,
+        environment: DataFetchingEnvironment? = null,
+    ): TestRunResult {
+        return withRequestOwner(environment) { testExecutor.executeTests(adlId, testCaseId) }
+    }
+
+    @GraphQLDescription("Deletes a test case by its ID.")
+    suspend fun deleteTest(
+        @GraphQLDescription("The ID of the test case to delete") id: String,
+        environment: DataFetchingEnvironment? = null,
+    ): Boolean {
+        return withRequestOwner(environment) { testCaseRepository.delete(id) }
+    }
+
+    @GraphQLDescription("Updates a single Test Case.")
+    suspend fun updateTest(
+        @GraphQLDescription("The updated Test Case data") input: UpdateTestCaseInput,
+        environment: DataFetchingEnvironment? = null,
+    ): TestCase {
+        return withRequestOwner(environment) {
+            val existing = testCaseRepository.findById(input.id)
+                ?: throw IllegalArgumentException("Test Case with ID ${input.id} not found")
+
+            val updated = existing.copy(
+                name = input.name ?: existing.name,
+                description = input.description ?: existing.description,
+                expectedConversation = input.expectedConversation ?: existing.expectedConversation,
+                contract = input.contract ?: false
+            )
+
+            val variants =
+                testVariantAgent.process<String, TestVariant>(updated.expectedConversation.filter { it.role == "user" }
+                    .joinToString { "- ${it.content}" }).getOrThrow()
+            log.info("Generated variants for test case ${updated.id}: $variants")
+            val newVariants = mutableListOf<List<ConversationTurn>>()
+            repeat(8) { i ->
+                newVariants += updated.expectedConversation.map { turn ->
+                    if (turn.role == "user") {
+                        val variantContent = variants.variants[turn.content]?.getOrNull(i) ?: turn.content
+                        turn.copy(content = variantContent)
+                    } else {
+                        turn
+                    }
+                }
+            }
+
+            testCaseRepository.save(updated.copy(variants = newVariants))
+        }
+    }
+
+    @GraphQLDescription("Adds a new Test Case manually.")
+    suspend fun addTest(
+        @GraphQLDescription("The new Test Case data") input: AddTestCaseInput,
+        environment: DataFetchingEnvironment? = null,
+    ): TestCase {
+        return withRequestOwner(environment) {
+            val testCase = TestCase(
+                useCaseId = input.useCaseId,
+                name = input.name,
+                description = input.description,
+                expectedConversation = input.expectedConversation,
+                contract = input.contract ?: false,
+            )
+
             val variants =
                 testVariantAgent.process<String, TestVariant>(testCase.expectedConversation.filter { it.role == "user" }
                     .joinToString { "- ${it.content}" }).getOrThrow()
             log.info("Generated variants for test case ${testCase.id}: $variants")
-
             val newVariants = mutableListOf<List<ConversationTurn>>()
             repeat(8) { i ->
                 newVariants += testCase.expectedConversation.map { turn ->
@@ -71,90 +165,9 @@ class TestCreatorMutation(
                     }
                 }
             }
-            testCase.copy(variants = newVariants)
+
+            testCaseRepository.save(testCase.copy(variants = newVariants))
         }
-
-        testCaseRepository.saveAll(testCases)
-        return NewTestsResponse(testCases.size)
-    }
-
-    @GraphQLDescription("Executes tests for a given Use Case.")
-    suspend fun executeTests(
-        @GraphQLDescription("The ADL identifier") adlId: String,
-        @GraphQLDescription("The Test Case ID") testCaseId: String? = null,
-    ): TestRunResult {
-        return testExecutor.executeTests(adlId, testCaseId)
-    }
-
-    @GraphQLDescription("Deletes a test case by its ID.")
-    suspend fun deleteTest(
-        @GraphQLDescription("The ID of the test case to delete") id: String,
-    ): Boolean {
-        return testCaseRepository.delete(id)
-    }
-
-    @GraphQLDescription("Updates a single Test Case.")
-    suspend fun updateTest(
-        @GraphQLDescription("The updated Test Case data") input: UpdateTestCaseInput,
-    ): TestCase {
-        val existing = testCaseRepository.findById(input.id)
-            ?: throw IllegalArgumentException("Test Case with ID ${input.id} not found")
-
-        val updated = existing.copy(
-            name = input.name ?: existing.name,
-            description = input.description ?: existing.description,
-            expectedConversation = input.expectedConversation ?: existing.expectedConversation,
-            contract = input.contract ?: false
-        )
-
-        val variants =
-            testVariantAgent.process<String, TestVariant>(updated.expectedConversation.filter { it.role == "user" }
-                .joinToString { "- ${it.content}" }).getOrThrow()
-        log.info("Generated variants for test case ${updated.id}: $variants")
-        val newVariants = mutableListOf<List<ConversationTurn>>()
-        repeat(8) { i ->
-            newVariants += updated.expectedConversation.map { turn ->
-                if (turn.role == "user") {
-                    val variantContent = variants.variants[turn.content]?.getOrNull(i) ?: turn.content
-                    turn.copy(content = variantContent)
-                } else {
-                    turn
-                }
-            }
-        }
-
-        return testCaseRepository.save(updated.copy(variants = newVariants))
-    }
-
-    @GraphQLDescription("Adds a new Test Case manually.")
-    suspend fun addTest(
-        @GraphQLDescription("The new Test Case data") input: AddTestCaseInput,
-    ): TestCase {
-        val testCase = TestCase(
-            useCaseId = input.useCaseId,
-            name = input.name,
-            description = input.description,
-            expectedConversation = input.expectedConversation,
-            contract = input.contract ?: false,
-        )
-
-        val variants =
-            testVariantAgent.process<String, TestVariant>(testCase.expectedConversation.filter { it.role == "user" }
-                .joinToString { "- ${it.content}" }).getOrThrow()
-        log.info("Generated variants for test case ${testCase.id}: $variants")
-        val newVariants = mutableListOf<List<ConversationTurn>>()
-        repeat(8) { i ->
-            newVariants += testCase.expectedConversation.map { turn ->
-                if (turn.role == "user") {
-                    val variantContent = variants.variants[turn.content]?.getOrNull(i) ?: turn.content
-                    turn.copy(content = variantContent)
-                } else {
-                    turn
-                }
-            }
-        }
-
-        return testCaseRepository.save(testCase.copy(variants = newVariants))
     }
 }
 

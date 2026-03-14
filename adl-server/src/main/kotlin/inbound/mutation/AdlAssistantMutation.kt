@@ -8,9 +8,10 @@ import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Mutation
 import graphql.GraphQLError
 import graphql.execution.DataFetcherResult
+import graphql.schema.DataFetchingEnvironment
 import kotlinx.serialization.Serializable
+import org.eclipse.lmos.adl.server.withRequestOwner
 import org.eclipse.lmos.adl.server.agents.UseCaseTags
-import org.eclipse.lmos.adl.server.models.UserSettings
 import org.eclipse.lmos.adl.server.repositories.AdlRepository
 import org.eclipse.lmos.adl.server.repositories.StatisticsRepository
 import org.eclipse.lmos.adl.server.repositories.UserSettingsRepository
@@ -22,7 +23,6 @@ import org.eclipse.lmos.arc.agents.conversation.ConversationMessage
 import org.eclipse.lmos.arc.agents.conversation.UserMessage
 import org.eclipse.lmos.arc.agents.conversation.latest
 import org.eclipse.lmos.arc.agents.dsl.extensions.OutputContext
-import org.eclipse.lmos.arc.agents.dsl.extensions.SystemContextProvider
 import org.eclipse.lmos.arc.api.AgentRequest
 import org.eclipse.lmos.arc.api.AgentResult
 import org.eclipse.lmos.arc.api.AgentResultType.MESSAGE
@@ -46,70 +46,73 @@ class AdlAssistantMutation(
     @GraphQLDescription("Calls the assistant agent")
     suspend fun assistant(
         @GraphQLDescription("The assistant input") input: AssistantInput,
+        environment: DataFetchingEnvironment? = null,
     ): DataFetcherResult<AgentResult> {
-        log.info("Received assistant request with useCases: ${input.request.conversationContext.conversationId}")
+        return withRequestOwner(environment) {
+            log.info("Received assistant request with useCases: ${input.request.conversationContext.conversationId}")
 
-        if (settingsRepository.get() == null) {
-            return DataFetcherResult.newResult<AgentResult>()
-                .error(
-                    GraphQLError.newError()
-                        .message("Please set your API key and model name in the settings.")
-                        .build()
-                )
-                .build()
-        }
-
-        val useCases =
-            input.useCasesId?.let { adlStorage.getAsUseCases(it) } ?: input.useCases?.toUseCases() ?: emptyList()
-        val request = input.request
-        val outputContext = OutputContext()
-        val start = System.nanoTime()
-
-        val result = assistantAgent.execute(
-            Conversation(
-                user = request.userContext.userId?.let { User(it) },
-                conversationId = request.conversationContext.conversationId,
-                currentTurnId = request.conversationContext.turnId
-                    ?: request.messages.lastOrNull()?.turnId
-                    ?: request.messages.size.toString(),
-                transcript = request.messages.convert(),
-            ),
-            setOf(
-                request,
-                useCases,
-                outputContext,
-                UseCaseTags(input.tags?.toSet()),
-            ),
-        )
-
-        val responseTime = Duration.ofNanos(System.nanoTime() - start)
-        statisticsRepository.recordResponseTime(responseTime)
-        val responseTimeSeconds = responseTime.toMillis() / 1000.0
-
-        outputContext.map()["useCase"]?.let { id ->
-            statisticsRepository.incrementUseCaseCount(id)
-            outputContext.map()["compliance"]?.let { complianceScore ->
-                val score = complianceScore.toIntOrNull()
-                score?.let { statisticsRepository.recordComplianceScore(id, it) }
-            }
-        }
-
-        val response = when (result) {
-            is Success -> {
-                val outputMessage = result.value.latest<AssistantMessage>()
-                AgentResult(
-                    status = result.value.classification.toString(),
-                    type = MESSAGE,
-                    responseTime = responseTimeSeconds,
-                    messages = listOf(outputMessage.toMessage()),
-                    context = outputContext.map().map { (key, value) -> ContextEntry(key, value) },
-                    toolCalls = outputMessage?.toolCalls?.map { ToolCall(it.name, it.arguments) },
-                )
+            if (settingsRepository.get() == null) {
+                return@withRequestOwner DataFetcherResult.newResult<AgentResult>()
+                    .error(
+                        GraphQLError.newError()
+                            .message("Please set your API key and model name in the settings.")
+                            .build()
+                    )
+                    .build()
             }
 
-            is Failure -> throw result.reason
+            val useCases =
+                input.useCasesId?.let { adlStorage.getAsUseCases(it) } ?: input.useCases?.toUseCases() ?: emptyList()
+            val request = input.request
+            val outputContext = OutputContext()
+            val start = System.nanoTime()
+
+            val result = assistantAgent.execute(
+                Conversation(
+                    user = request.userContext.userId?.let { User(it) },
+                    conversationId = request.conversationContext.conversationId,
+                    currentTurnId = request.conversationContext.turnId
+                        ?: request.messages.lastOrNull()?.turnId
+                        ?: request.messages.size.toString(),
+                    transcript = request.messages.convert(),
+                ),
+                setOf(
+                    request,
+                    useCases,
+                    outputContext,
+                    UseCaseTags(input.tags?.toSet()),
+                ),
+            )
+
+            val responseTime = Duration.ofNanos(System.nanoTime() - start)
+            statisticsRepository.recordResponseTime(responseTime)
+            val responseTimeSeconds = responseTime.toMillis() / 1000.0
+
+            outputContext.map()["useCase"]?.let { id ->
+                statisticsRepository.incrementUseCaseCount(id)
+                outputContext.map()["compliance"]?.let { complianceScore ->
+                    val score = complianceScore.toIntOrNull()
+                    score?.let { statisticsRepository.recordComplianceScore(id, it) }
+                }
+            }
+
+            val response = when (result) {
+                is Success -> {
+                    val outputMessage = result.value.latest<AssistantMessage>()
+                    AgentResult(
+                        status = result.value.classification.toString(),
+                        type = MESSAGE,
+                        responseTime = responseTimeSeconds,
+                        messages = listOf(outputMessage.toMessage()),
+                        context = outputContext.map().map { (key, value) -> ContextEntry(key, value) },
+                        toolCalls = outputMessage?.toolCalls?.map { ToolCall(it.name, it.arguments) },
+                    )
+                }
+
+                is Failure -> throw result.reason
+            }
+            DataFetcherResult.newResult<AgentResult>().data(response).build()
         }
-        return DataFetcherResult.newResult<AgentResult>().data(response).build()
     }
 }
 

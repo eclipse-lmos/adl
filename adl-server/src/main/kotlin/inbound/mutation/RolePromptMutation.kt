@@ -5,6 +5,8 @@ package org.eclipse.lmos.adl.server.inbound.mutation
 
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Mutation
+import graphql.schema.DataFetchingEnvironment
+import org.eclipse.lmos.adl.server.withRequestOwner
 import org.eclipse.lmos.adl.server.models.RolePrompt
 import org.eclipse.lmos.adl.server.repositories.RolePromptRepository
 
@@ -20,14 +22,18 @@ class RolePromptMutation(private val rolePromptRepository: RolePromptRepository)
         @GraphQLDescription("Tags associated with the role") tags: List<String>? = null,
         @GraphQLDescription("The role description prompt") role: String,
         @GraphQLDescription("The tone description prompt") tone: String,
+        environment: DataFetchingEnvironment? = null,
     ): RolePrompt {
-        val rolePrompt = RolePrompt(id, name, "", tags ?: emptyList(), role, tone)
-        return rolePromptRepository.save(rolePrompt)
+        return withRequestOwner(environment) {
+            val rolePrompt = RolePrompt(id, name, "", tags ?: emptyList(), role, tone)
+            rolePromptRepository.save(rolePrompt)
+        }
     }
 
     @GraphQLDescription("Deletes a role prompt.")
     suspend fun deleteRolePrompt(
-        @GraphQLDescription("The unique ID of the role prompt to delete") id: String
-    ): Boolean = rolePromptRepository.delete(id)
+        @GraphQLDescription("The unique ID of the role prompt to delete") id: String,
+        environment: DataFetchingEnvironment? = null,
+    ): Boolean = withRequestOwner(environment) { rolePromptRepository.delete(id) }
 }
 

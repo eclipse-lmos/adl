@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.eclipse.lmos.adl.server.models
 
+import org.eclipse.lmos.adl.server.DEFAULT_OWNER
+
 /**
  * Represents a role prompt.
  */
@@ -13,5 +15,6 @@ data class RolePrompt(
     val tags: List<String>,
     val role: String,
     val tone: String,
+    val owner: String = DEFAULT_OWNER,
 )
 

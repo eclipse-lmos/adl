@@ -6,6 +6,7 @@ package org.eclipse.lmos.adl.server.models
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import org.eclipse.lmos.adl.server.DEFAULT_OWNER
 
 /**
  * Represents a generated test case.
@@ -20,5 +21,6 @@ data class TestCase(
     @SerialName("expected_conversation")
     val expectedConversation: List<ConversationTurn>,
     val variants : List<List<ConversationTurn>> = emptyList(),
-    val contract: Boolean = false
+    val contract: Boolean = false,
+    val owner: String = DEFAULT_OWNER,
 )

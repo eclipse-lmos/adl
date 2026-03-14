@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.eclipse.lmos.adl.server.repositories.impl
 
+import org.eclipse.lmos.adl.server.DEFAULT_OWNER
+import org.eclipse.lmos.adl.server.currentOwner
 import org.eclipse.lmos.adl.server.models.RolePrompt
 import org.eclipse.lmos.adl.server.repositories.RolePromptRepository
 import java.util.concurrent.ConcurrentHashMap
@@ -14,7 +16,7 @@ class InMemoryRolePromptRepository(initialPrompts: List<RolePrompt> = emptyList(
     private val prompts = ConcurrentHashMap<String, RolePrompt>()
 
     init {
-        prompts["default"] = RolePrompt(
+        prompts[key(DEFAULT_OWNER, "default")] = RolePrompt(
             id = "default",
             name = "Default Role",
             description = "",
@@ -33,19 +35,27 @@ class InMemoryRolePromptRepository(initialPrompts: List<RolePrompt> = emptyList(
                 - Avoid robotic phrasing or overly formal wording.
                 - Do not add unnecessary information.
                 - Do not make assumptions beyond the provided context.
-            """.trimIndent()
+            """.trimIndent(),
+            owner = DEFAULT_OWNER,
         )
+        initialPrompts.forEach { prompts[key(it.owner, it.id)] = it }
     }
 
-    override suspend fun findAll(): List<RolePrompt> = prompts.values.toList()
+    override suspend fun findAll(): List<RolePrompt> {
+        val owner = currentOwner()
+        return prompts.values.filter { it.owner == owner }
+    }
 
-    override suspend fun findById(id: String): RolePrompt? = prompts[id]
+    override suspend fun findById(id: String): RolePrompt? = prompts[key(currentOwner(), id)]
 
     override suspend fun save(rolePrompt: RolePrompt): RolePrompt {
-        prompts[rolePrompt.id] = rolePrompt
-        return rolePrompt
+        val scopedRolePrompt = rolePrompt.copy(owner = currentOwner())
+        prompts[key(scopedRolePrompt.owner, scopedRolePrompt.id)] = scopedRolePrompt
+        return scopedRolePrompt
     }
 
-    override suspend fun delete(id: String): Boolean = prompts.remove(id) != null
+    override suspend fun delete(id: String): Boolean = prompts.remove(key(currentOwner(), id)) != null
+
+    private fun key(owner: String, id: String): String = "$owner::$id"
 }
 

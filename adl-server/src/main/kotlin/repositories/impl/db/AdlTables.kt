@@ -20,6 +20,7 @@ private fun stringListDeserialize(value: String): List<String> =
     jsonFormat.decodeFromString(ListSerializer(String.serializer()), value)
 
 object AdlsTable : Table("adls") {
+    val owner = varchar("owner", 255).default("public")
     val id = varchar("id", 255)
     val content = text("content")
     val tags = jsonb("tags", ::stringListSerialize, ::stringListDeserialize)
@@ -29,12 +30,13 @@ object AdlsTable : Table("adls") {
     val createdAt = timestampWithTimeZone("created_at")
     val updatedAt = timestampWithTimeZone("updated_at")
 
-    override val primaryKey = PrimaryKey(id)
+    override val primaryKey = PrimaryKey(owner, id)
 }
 
 object AdlVersionsTable : Table("adl_versions") {
     val id = long("id").autoIncrement()
-    val adlId = varchar("adl_id", 255).references(AdlsTable.id)
+    val owner = varchar("owner", 255).default("public")
+    val adlId = varchar("adl_id", 255)
     val version = integer("version")
     val content = text("content")
     val tags = jsonb("tags", ::stringListSerialize, ::stringListDeserialize)
@@ -45,6 +47,7 @@ object AdlVersionsTable : Table("adl_versions") {
     override val primaryKey = PrimaryKey(id)
 
     init {
-        uniqueIndex(adlId, version)
+        foreignKey(owner, adlId, target = AdlsTable.primaryKey)
+        uniqueIndex(owner, adlId, version)
     }
 }

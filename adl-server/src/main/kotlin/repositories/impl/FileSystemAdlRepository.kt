@@ -3,11 +3,14 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.eclipse.lmos.adl.server.repositories.impl
 
+import org.eclipse.lmos.adl.server.DEFAULT_OWNER
+import org.eclipse.lmos.adl.server.currentOwner
 import org.eclipse.lmos.adl.server.model.Adl
 import org.eclipse.lmos.adl.server.repositories.AdlRepository
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.time.Instant
+import java.util.Base64
 
 class FileSystemAdlRepository(private val folder: File) : AdlRepository {
     private val log = LoggerFactory.getLogger(FileSystemAdlRepository::class.java)
@@ -20,25 +23,28 @@ class FileSystemAdlRepository(private val folder: File) : AdlRepository {
     }
 
     override suspend fun store(adl: Adl): Adl {
-        val id = if (adl.id.isBlank()) "new-adl" else adl.id
-        val file = File(folder, "$id.md")
+        val scopedAdl = adl.copy(owner = currentOwner())
+        val id = if (scopedAdl.id.isBlank()) "new-adl" else scopedAdl.id
+        val file = fileForId(id, scopedAdl.owner)
+        file.parentFile?.mkdirs()
 
         val metadata = mutableMapOf<String, Any>()
         metadata["id"] = id
-        if (adl.tags.isNotEmpty()) metadata["tags"] = adl.tags
-        if (!adl.output.isNullOrBlank()) metadata["output"] = adl.output
-        if (adl.examples.isNotEmpty()) metadata["examples"] = adl.examples
-        if (adl.version != "1.0.0") metadata["version"] = adl.version
+        metadata["owner"] = scopedAdl.owner
+        if (scopedAdl.tags.isNotEmpty()) metadata["tags"] = scopedAdl.tags
+        if (!scopedAdl.output.isNullOrBlank()) metadata["output"] = scopedAdl.output
+        if (scopedAdl.examples.isNotEmpty()) metadata["examples"] = scopedAdl.examples
+        if (scopedAdl.version != "1.0.0") metadata["version"] = scopedAdl.version
 
-        val frontMatter = YamlFrontMatter(metadata, adl.content)
+        val frontMatter = YamlFrontMatter(metadata, scopedAdl.content)
         val text = processor.write(frontMatter)
 
         file.writeText(text)
-        return adl
+        return scopedAdl
     }
 
     override suspend fun get(id: String): Adl? {
-        val file = File(folder, "$id.md")
+        val file = fileForId(id, currentOwner())
         if (!file.exists()) return null
 
         return try {
@@ -51,6 +57,7 @@ class FileSystemAdlRepository(private val folder: File) : AdlRepository {
             val output = metadata["output"]?.toString()
             val examples = (metadata["examples"] as? List<*>)?.map { it.toString() } ?: emptyList()
             val version = metadata["version"]?.toString() ?: "1.0.0"
+            val owner = metadata["owner"]?.toString() ?: DEFAULT_OWNER
 
             Adl(
                 id = adlId,
@@ -60,7 +67,8 @@ class FileSystemAdlRepository(private val folder: File) : AdlRepository {
                 examples = examples,
                 output = output,
                 relevance = null,
-                version = version
+                version = version,
+                owner = owner,
             )
         } catch (e: Exception) {
             log.error("Error reading ADL file $id", e)
@@ -69,18 +77,41 @@ class FileSystemAdlRepository(private val folder: File) : AdlRepository {
     }
 
     override suspend fun list(): List<Adl> {
-        return folder.listFiles { _, name -> name.endsWith(".md") }
+        val ownerFolder = folderForOwner(currentOwner())
+        return ownerFolder.listFiles { _, name -> name.endsWith(".md") }
             ?.mapNotNull { file ->
-                val id = file.nameWithoutExtension
+                val id = fileIdFrom(file, currentOwner())
                 get(id)
             }
             ?: emptyList()
     }
 
     override suspend fun deleteById(id: String) {
-        val file = File(folder, "$id.md")
+        val file = fileForId(id, currentOwner())
         if (file.exists()) {
             file.delete()
         }
+    }
+
+    private fun fileForId(id: String, owner: String): File {
+        return if (owner == DEFAULT_OWNER) {
+            File(folderForOwner(owner), "$id.md")
+        } else {
+            File(folderForOwner(owner), "${encode(id)}.md")
+        }
+    }
+
+    private fun folderForOwner(owner: String): File {
+        return if (owner == DEFAULT_OWNER) folder else File(folder, encode(owner)).apply { mkdirs() }
+    }
+
+    private fun encode(value: String): String =
+        Base64.getUrlEncoder().withoutPadding().encodeToString(value.toByteArray(Charsets.UTF_8))
+
+    private fun decodeId(value: String): String =
+        String(Base64.getUrlDecoder().decode(value), Charsets.UTF_8)
+
+    private fun fileIdFrom(file: File, owner: String): String {
+        return if (owner == DEFAULT_OWNER) file.nameWithoutExtension else decodeId(file.nameWithoutExtension)
     }
 }

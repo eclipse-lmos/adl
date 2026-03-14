@@ -5,6 +5,7 @@
 package org.eclipse.lmos.adl.server.models
 
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
+import org.eclipse.lmos.adl.server.DEFAULT_OWNER
 
 @GraphQLDescription("An agent configuration")
 data class Agent(
@@ -26,4 +27,7 @@ data class Agent(
     val role: String? = null,
     @property:GraphQLDescription("An optional core prompt for the agent")
     val corePrompt: String? = null,
+
+    @property:GraphQLDescription("Owner of the agent")
+    val owner: String = DEFAULT_OWNER,
 )

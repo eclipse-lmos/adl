@@ -6,6 +6,8 @@ package org.eclipse.lmos.adl.server.inbound.query
 
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Query
+import graphql.schema.DataFetchingEnvironment
+import org.eclipse.lmos.adl.server.withRequestOwner
 import org.eclipse.lmos.adl.server.models.TestCase
 import org.eclipse.lmos.adl.server.repositories.TestCaseRepository
 
@@ -16,8 +18,9 @@ class TestCaseQuery(
 
     @GraphQLDescription("Fetches test cases for a given use case ID.")
    suspend fun testCases(
-        @GraphQLDescription("The ID of the use case.") useCaseId: String
+        @GraphQLDescription("The ID of the use case.") useCaseId: String,
+        environment: DataFetchingEnvironment? = null,
     ): List<TestCase> {
-        return testCaseRepository.findByUseCaseId(useCaseId)
+        return withRequestOwner(environment) { testCaseRepository.findByUseCaseId(useCaseId) }
     }
 }

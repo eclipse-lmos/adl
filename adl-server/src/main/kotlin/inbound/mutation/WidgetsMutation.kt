@@ -6,6 +6,8 @@ package org.eclipse.lmos.adl.server.inbound.mutation
 
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Mutation
+import graphql.schema.DataFetchingEnvironment
+import org.eclipse.lmos.adl.server.withRequestOwnerBlocking
 import org.eclipse.lmos.adl.server.agents.FacesAgent
 import org.eclipse.lmos.adl.server.models.Widget
 import org.eclipse.lmos.adl.server.repositories.WidgetRepository
@@ -46,25 +48,29 @@ class WidgetsMutation(
 
     @GraphQLDescription("Save a widget")
     fun saveWidget(
-        @GraphQLDescription("The widget to save") input: SaveWidgetInput
+        @GraphQLDescription("The widget to save") input: SaveWidgetInput,
+        environment: DataFetchingEnvironment? = null,
     ): Widget {
-        val id = input.id ?: UUID.randomUUID().toString()
-        val widget = Widget(
-            id = id,
-            name = input.name,
-            description = input.description,
-            html = input.html,
-            jsonSchema = input.jsonSchema,
-            preview = input.preview
-        )
-        return widgetRepository.save(widget)
+        return withRequestOwnerBlocking(environment) {
+            val id = input.id ?: UUID.randomUUID().toString()
+            val widget = Widget(
+                id = id,
+                name = input.name,
+                description = input.description,
+                html = input.html,
+                jsonSchema = input.jsonSchema,
+                preview = input.preview
+            )
+            widgetRepository.save(widget)
+        }
     }
 
     @GraphQLDescription("Delete a widget")
     fun deleteWidget(
-        @GraphQLDescription("The ID of the widget to delete") id: String
+        @GraphQLDescription("The ID of the widget to delete") id: String,
+        environment: DataFetchingEnvironment? = null,
     ): Boolean {
-        return widgetRepository.delete(id)
+        return withRequestOwnerBlocking(environment) { widgetRepository.delete(id) }
     }
 }
 

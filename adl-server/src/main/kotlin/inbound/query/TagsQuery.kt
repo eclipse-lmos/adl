@@ -5,6 +5,8 @@ package org.eclipse.lmos.adl.server.inbound.query
 
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Query
+import graphql.schema.DataFetchingEnvironment
+import org.eclipse.lmos.adl.server.withRequestOwner
 import org.eclipse.lmos.adl.server.repositories.TagRepository
 
 /**
@@ -15,8 +17,8 @@ class TagsQuery(
 ) : Query {
 
     @GraphQLDescription("Returns a list of all tags used in the ADLs.")
-    suspend fun tags(): List<String> {
-        return tagRepository.list()
+    suspend fun tags(environment: DataFetchingEnvironment? = null): List<String> {
+        return withRequestOwner(environment) { tagRepository.list() }
     }
 }
 

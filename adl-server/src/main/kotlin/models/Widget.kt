@@ -5,6 +5,7 @@
 package org.eclipse.lmos.adl.server.models
 
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
+import org.eclipse.lmos.adl.server.DEFAULT_OWNER
 
 @GraphQLDescription("A UI widget")
 data class Widget(
@@ -19,5 +20,7 @@ data class Widget(
     @GraphQLDescription("The JSON schema")
     val jsonSchema: String,
     @GraphQLDescription("Preview image or data")
-    val preview: String? = null
+    val preview: String? = null,
+    @GraphQLDescription("Owner of the widget")
+    val owner: String = DEFAULT_OWNER,
 )
