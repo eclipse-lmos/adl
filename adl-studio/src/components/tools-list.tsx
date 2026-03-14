@@ -16,11 +16,7 @@ type Tool = {
 };
 
 type ToolsListProps = {
-    toolsResult: {
-        data: any;
-        fetching: boolean;
-        error?: any;
-    }
+    toolsResult: any;
 };
 
 type Parameter = {
@@ -58,16 +54,15 @@ export default function ToolsList({ toolsResult }: ToolsListProps) {
   }
   
   const parseParameters = (params: any): { structured: Parameter[] | null; raw: string } => {
-    let raw = '';
-    if (typeof params === 'object' && params !== null) {
-        try {
-            raw = JSON.stringify(params, null, 2);
-        } catch {
-            raw = String(params);
-        }
-    } else {
-        raw = String(params);
-    }
+    const raw = typeof params === 'object' && params !== null
+      ? (() => {
+          try {
+            return JSON.stringify(params, null, 2);
+          } catch {
+            return String(params);
+          }
+        })()
+      : String(params);
 
     // Try parsing as JSON first
     try {
@@ -87,33 +82,31 @@ export default function ToolsList({ toolsResult }: ToolsListProps) {
     }
 
     // Custom parser for the string format like "ParametersSchema(...)"
-    if (typeof raw === 'string') {
-      const propertiesRegex = /properties=\{([^\}]+)\}/s;
-      const propertiesMatch = raw.match(propertiesRegex);
-  
-      if (propertiesMatch && propertiesMatch[1]) {
-        const propertiesString = propertiesMatch[1];
-        const paramRegex = /(\w+)=ParameterSchema\((.*?)\)/g;
-        const parameters: Parameter[] = [];
-        let match;
-  
-        while ((match = paramRegex.exec(propertiesString)) !== null) {
-          const name = match[1];
-          const schemaContent = match[2];
-          
-          const typeRegex = /type=([^,]+)/;
-          const descriptionMatch = schemaContent.match(/description=(.*?)(?:, \w+=|$)/s);
+    const propertiesRegex = /properties=\{([^}]+)}/;
+    const propertiesMatch = raw.match(propertiesRegex);
 
-          parameters.push({
-            name: name,
-            type: typeRegex.exec(schemaContent)?.[1].trim() || 'any',
-            description: descriptionMatch?.[1].trim() || 'No description available.',
-          });
-        }
-  
-        if (parameters.length > 0) {
-          return { structured: parameters, raw };
-        }
+    if (propertiesMatch && propertiesMatch[1]) {
+      const propertiesString = propertiesMatch[1];
+      const paramRegex = /(\w+)=ParameterSchema\((.*?)\)/g;
+      const parameters: Parameter[] = [];
+      let match;
+
+      while ((match = paramRegex.exec(propertiesString)) !== null) {
+        const name = match[1];
+        const schemaContent = match[2];
+
+        const typeRegex = /type=([^,]+)/;
+        const descriptionMatch = schemaContent.match(/description=([\s\S]*?)(?:, \w+=|$)/);
+
+        parameters.push({
+          name: name,
+          type: typeRegex.exec(schemaContent)?.[1].trim() || 'any',
+          description: descriptionMatch?.[1].trim() || 'No description available.',
+        });
+      }
+
+      if (parameters.length > 0) {
+        return { structured: parameters, raw };
       }
     }
 

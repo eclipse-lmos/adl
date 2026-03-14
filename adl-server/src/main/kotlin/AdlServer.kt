@@ -65,6 +65,7 @@ import org.eclipse.lmos.adl.server.repositories.impl.InMemoryAdlRepository
 import org.eclipse.lmos.adl.server.repositories.impl.db.PostgresAdlRepository
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import dev.langchain4j.model.ollama.OllamaEmbeddingModel
 import org.flywaydb.core.Flyway
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryAgentRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryRolePromptRepository
@@ -74,6 +75,7 @@ import org.eclipse.lmos.adl.server.repositories.impl.InMemoryUseCaseEmbeddingsSt
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryUserSettingsRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryWidgetRepository
 import org.eclipse.lmos.adl.server.repositories.impl.FileSystemWidgetRepository
+import org.eclipse.lmos.adl.server.repositories.impl.FileSystemTestCaseRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryTagRepository
 import org.eclipse.lmos.adl.server.services.ClientEventPublisher
 import org.eclipse.lmos.adl.server.services.ConversationEvaluator
@@ -84,6 +86,29 @@ import org.eclipse.lmos.adl.server.sessions.InMemorySessions
 import org.eclipse.lmos.adl.server.templates.TemplateLoader
 import java.io.File
 
+internal data class FileRepositoryFolders(
+    val adlFolder: File?,
+    val widgetFolder: File?,
+    val testCaseFolder: File?,
+)
+
+internal fun resolveFileRepositoryFolders(
+    adlFolderOverride: String?,
+    widgetFolderOverride: String?,
+    testCaseFolderOverride: String?,
+    localAdlFolder: File = File("adls"),
+): FileRepositoryFolders {
+    val adlFolder = adlFolderOverride?.let(::File) ?: localAdlFolder.takeIf { it.exists() }
+    val widgetFolder = widgetFolderOverride?.let(::File) ?: adlFolder?.resolve("widgets")
+    val testCaseFolder = testCaseFolderOverride?.let(::File) ?: adlFolder?.resolve("test-cases")
+
+    return FileRepositoryFolders(
+        adlFolder = adlFolder,
+        widgetFolder = widgetFolder,
+        testCaseFolder = testCaseFolder,
+    )
+}
+
 fun startServer(
     wait: Boolean = true,
     port: Int? = null,
@@ -91,10 +116,18 @@ fun startServer(
     module: Application.() -> Unit = {},
 ): EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration> {
     // Dependencies
+    val fileRepositoryFolders = resolveFileRepositoryFolders(
+        adlFolderOverride = EnvConfig.adlFolder,
+        widgetFolderOverride = EnvConfig.widgetFolder,
+        testCaseFolderOverride = EnvConfig.testCaseFolder,
+    )
     val templateLoader = TemplateLoader()
     val sessions = InMemorySessions()
     // val embeddingModel = AllMiniLmL6V2EmbeddingModel()
     val embeddingModel = BgeSmallEnV15QuantizedEmbeddingModel()
+    //val embeddingModel = OllamaEmbeddingModel.builder()
+        //    .baseUrl("http://localhost:11434")
+    // .modelName("embeddinggemma").build()
     // val useCaseStore: UseCaseEmbeddingsRepository = QdrantUseCaseEmbeddingsStore(embeddingModel, qdrantConfig)
     val embeddingStore: UseCaseEmbeddingsRepository = InMemoryUseCaseEmbeddingsStore(embeddingModel)
     val adlStorage: AdlRepository = when {
@@ -110,18 +143,19 @@ fun startServer(
             PostgresAdlRepository(dataSource)
         }
 
-        EnvConfig.adlFolder != null -> FileSystemAdlRepository(File(EnvConfig.adlFolder!!))
-        File("adls").exists() -> FileSystemAdlRepository(File("adls"))
+        fileRepositoryFolders.adlFolder != null -> FileSystemAdlRepository(fileRepositoryFolders.adlFolder)
         else -> InMemoryAdlRepository()
     }
     val rolePromptRepository: RolePromptRepository = InMemoryRolePromptRepository()
     val agentRepository: AgentRepository = InMemoryAgentRepository()
     val mcpService = McpService()
-    val testCaseRepository = InMemoryTestCaseRepository()
+    val testCaseRepository = when {
+        fileRepositoryFolders.testCaseFolder != null -> FileSystemTestCaseRepository(fileRepositoryFolders.testCaseFolder)
+        else -> InMemoryTestCaseRepository()
+    }
     val userSettingsRepository = InMemoryUserSettingsRepository()
     val widgetRepository = when {
-        EnvConfig.widgetFolder != null -> FileSystemWidgetRepository(File(EnvConfig.widgetFolder!!))
-        File("widgets").exists() -> FileSystemWidgetRepository(File("widgets"))
+        fileRepositoryFolders.widgetFolder != null -> FileSystemWidgetRepository(fileRepositoryFolders.widgetFolder)
         else -> InMemoryWidgetRepository()
     }
     val clientEventPublisher = ClientEventPublisher()
@@ -228,7 +262,7 @@ fun startServer(
                 )
             }
             server {
-
+                contextFactory = DefaultKtorGraphQLContextFactory()
             }
             engine {
                 exceptionHandler = GlobalExceptionHandler()

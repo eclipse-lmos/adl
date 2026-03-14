@@ -64,6 +64,9 @@ export const GetUserSettingsQuery = `
       apiKey
       modelName
       modelUrl
+      embeddingModel
+      embeddingUrl
+      embeddingKey
     }
   }
 `;

@@ -170,11 +170,28 @@ export const GenerateWidgetMutation = `
 `;
 
 export const SetUserSettingsMutation = `
-  mutation SetUserSettings($apiKey: String!, $modelName: String!, $modelUrl: String) {
-    setUserSettings(apiKey: $apiKey, modelName: $modelName, modelUrl: $modelUrl) {
+  mutation SetUserSettings(
+    $apiKey: String!
+    $modelName: String!
+    $modelUrl: String
+    $embeddingModel: String
+    $embeddingUrl: String
+    $embeddingKey: String
+  ) {
+    setUserSettings(
+      apiKey: $apiKey
+      modelName: $modelName
+      modelUrl: $modelUrl
+      embeddingModel: $embeddingModel
+      embeddingUrl: $embeddingUrl
+      embeddingKey: $embeddingKey
+    ) {
       apiKey
       modelName
       modelUrl
+      embeddingModel
+      embeddingUrl
+      embeddingKey
     }
   }
 `;

@@ -1,13 +1,15 @@
-// SPDX-FileCopyrightText: 2025 Deutsche Telekom AG and others
+// SPDX-FileCopyrightText: 2026 Deutsche Telekom AG and others
 //
 // SPDX-License-Identifier: Apache-2.0
 package org.eclipse.lmos.adl.server.repositories.impl
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.eclipse.lmos.adl.server.DEFAULT_OWNER
 import org.eclipse.lmos.adl.server.currentOwner
-import org.eclipse.lmos.adl.server.models.Widget
-import org.eclipse.lmos.adl.server.repositories.WidgetRepository
+import org.eclipse.lmos.adl.server.models.TestCase
+import org.eclipse.lmos.adl.server.repositories.TestCaseRepository
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.AtomicMoveNotSupportedException
@@ -16,8 +18,11 @@ import java.nio.file.StandardCopyOption.ATOMIC_MOVE
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import java.util.Base64
 
-class FileSystemWidgetRepository(private val folder: File) : WidgetRepository {
-    private val log = LoggerFactory.getLogger(FileSystemWidgetRepository::class.java)
+/**
+ * Filesystem-backed implementation of [TestCaseRepository].
+ */
+class FileSystemTestCaseRepository(private val folder: File) : TestCaseRepository {
+    private val log = LoggerFactory.getLogger(FileSystemTestCaseRepository::class.java)
     private val objectMapper = jacksonObjectMapper()
 
     init {
@@ -26,62 +31,71 @@ class FileSystemWidgetRepository(private val folder: File) : WidgetRepository {
         }
     }
 
-    override fun save(widget: Widget): Widget {
-        val scopedWidget = widget.copy(owner = currentOwner())
-        val targetFile = fileForId(scopedWidget.id, scopedWidget.owner)
+    override suspend fun save(testCase: TestCase): TestCase = withContext(Dispatchers.IO) {
+        val scopedTestCase = testCase.copy(owner = currentOwner())
+        val targetFile = fileForId(scopedTestCase.id, scopedTestCase.owner)
         targetFile.parentFile?.mkdirs()
         val tempFile = File.createTempFile(targetFile.nameWithoutExtension, ".tmp", targetFile.parentFile)
 
-        return try {
-            objectMapper.writeValue(tempFile, scopedWidget)
+        try {
+            objectMapper.writeValue(tempFile, scopedTestCase)
             try {
                 Files.move(tempFile.toPath(), targetFile.toPath(), REPLACE_EXISTING, ATOMIC_MOVE)
             } catch (_: AtomicMoveNotSupportedException) {
                 Files.move(tempFile.toPath(), targetFile.toPath(), REPLACE_EXISTING)
             }
-            scopedWidget
+            scopedTestCase
         } catch (exception: Exception) {
             tempFile.delete()
             throw exception
         }
     }
 
-    override fun findById(id: String): Widget? {
+    override suspend fun saveAll(testCases: List<TestCase>): List<TestCase> {
+        testCases.forEach { save(it) }
+        return testCases
+    }
+
+    override suspend fun findById(id: String): TestCase? = withContext(Dispatchers.IO) {
         val file = fileForId(id, currentOwner())
         if (!file.exists()) {
-            return null
+            return@withContext null
         }
 
-        return try {
-            objectMapper.readValue(file, Widget::class.java)
+        try {
+            objectMapper.readValue(file, TestCase::class.java)
         } catch (exception: Exception) {
-            log.error("Error reading widget file for id {}", id, exception)
+            log.error("Error reading test case file for id {}", id, exception)
             null
         }
     }
 
-    override fun findByName(name: String): List<Widget> {
-        return findAll().filter { it.name == name }
-    }
-
-    override fun findAll(): List<Widget> {
+    override suspend fun findAll(): List<TestCase> = withContext(Dispatchers.IO) {
         val ownerFolder = folderForOwner(currentOwner())
-        return ownerFolder.listFiles { _, fileName -> fileName.endsWith(FILE_EXTENSION) }
+        ownerFolder.listFiles { _, fileName -> fileName.endsWith(FILE_EXTENSION) }
             ?.sortedBy { it.name }
             ?.mapNotNull { file ->
                 try {
-                    objectMapper.readValue(file, Widget::class.java)
+                    objectMapper.readValue(file, TestCase::class.java)
                 } catch (exception: Exception) {
-                    log.error("Error reading widget file {}", file.name, exception)
+                    log.error("Error reading test case file {}", file.name, exception)
                     null
                 }
             }
             ?: emptyList()
     }
 
-    override fun delete(id: String): Boolean {
+    override suspend fun findByUseCaseId(useCaseId: String): List<TestCase> {
+        return findAll().filter { it.useCaseId == useCaseId }
+    }
+
+    override suspend fun findByADLId(adlId: String): List<TestCase> {
+        return findAll().filter { it.adlId == adlId }
+    }
+
+    override suspend fun delete(id: String): Boolean = withContext(Dispatchers.IO) {
         val file = fileForId(id, currentOwner())
-        return file.exists() && file.delete()
+        file.exists() && file.delete()
     }
 
     private fun fileForId(id: String, owner: String): File {
@@ -97,7 +111,7 @@ class FileSystemWidgetRepository(private val folder: File) : WidgetRepository {
     }
 
     private companion object {
-        const val FILE_EXTENSION = ".widget.json"
+        const val FILE_EXTENSION = ".test.json"
     }
 }
 

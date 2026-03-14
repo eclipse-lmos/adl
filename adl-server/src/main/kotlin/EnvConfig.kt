@@ -61,17 +61,25 @@ object EnvConfig {
      * ADL storage folder.
      *
      * Environment variable: ADL_FOLDER
-     * Default value: null
+     * Default value: null (or local `adls/` if present)
      */
     val adlFolder get() = System.getenv("ADL_FOLDER")
 
     /**
-     * Widget storage folder.
+     * Widget storage folder override.
      *
      * Environment variable: WIDGET_FOLDER
-     * Default value: null
+     * Default value: null (falls back to `<ADL_FOLDER>/widgets` or `adls/widgets` when file storage is enabled)
      */
     val widgetFolder get() = System.getenv("WIDGET_FOLDER")
+
+    /**
+     * Test case storage folder override.
+     *
+     * Environment variable: TEST_CASE_FOLDER
+     * Default value: null (falls back to `<ADL_FOLDER>/test-cases` or `adls/test-cases` when file storage is enabled)
+     */
+    val testCaseFolder get() = System.getenv("TEST_CASE_FOLDER")
 
     /**
      * PostgreSQL database JDBC URL.

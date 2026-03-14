@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation } from 'urql';
-import { Settings, Plus, Trash2, Loader2, AlertCircle, Save, Palette } from 'lucide-react';
+import { Plus, Trash2, Loader2, AlertCircle, Save } from 'lucide-react';
 import AppHeader from '@/components/header';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,9 @@ export default function SettingsPage() {
   const [apiKey, setApiKey] = useState('');
   const [modelName, setModelName] = useState('');
   const [modelUrl, setModelUrl] = useState('');
+  const [embeddingModel, setEmbeddingModel] = useState('');
+  const [embeddingUrl, setEmbeddingUrl] = useState('');
+  const [embeddingKey, setEmbeddingKey] = useState('');
   const { toast } = useToast();
 
   const [serverUrlsResult, reexecuteServers] = useQuery({ query: GetMcpServerUrlsQuery });
@@ -58,8 +61,16 @@ export default function SettingsPage() {
       setApiKey(userSettingsResult.data.userSettings.apiKey || '');
       setModelName(userSettingsResult.data.userSettings.modelName || '');
       setModelUrl(userSettingsResult.data.userSettings.modelUrl || '');
+      setEmbeddingModel(userSettingsResult.data.userSettings.embeddingModel || '');
+      setEmbeddingUrl(userSettingsResult.data.userSettings.embeddingUrl || '');
+      setEmbeddingKey(userSettingsResult.data.userSettings.embeddingKey || '');
     }
   }, [userSettingsResult.data]);
+
+  const normalizeOptional = (value: string) => {
+    const trimmedValue = value.trim();
+    return trimmedValue.length > 0 ? trimmedValue : null;
+  };
 
   const updateServers = useCallback((urls: string[]) => {
     executeServersMutation({ urls }).then((result) => {
@@ -88,7 +99,14 @@ export default function SettingsPage() {
   };
   
   const handleLlmSettingsSave = () => {
-    executeSetSettings({ apiKey, modelName, modelUrl }).then(result => {
+    executeSetSettings({
+      apiKey,
+      modelName,
+      modelUrl: normalizeOptional(modelUrl),
+      embeddingModel: normalizeOptional(embeddingModel),
+      embeddingUrl: normalizeOptional(embeddingUrl),
+      embeddingKey: normalizeOptional(embeddingKey),
+    }).then(result => {
         if (result.error) {
             toast({
                 title: "Error saving settings",
@@ -239,6 +257,35 @@ export default function SettingsPage() {
                             onChange={(e) => setModelUrl(e.target.value)}
                         />
                         <p className="text-xs text-muted-foreground">Custom endpoint for model inference.</p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="embedding-model">Embedding Model (Optional)</Label>
+                        <Input 
+                            id="embedding-model"
+                            placeholder="e.g. text-embedding-3-small"
+                            value={embeddingModel}
+                            onChange={(e) => setEmbeddingModel(e.target.value)}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="embedding-url">Embedding URL (Optional)</Label>
+                        <Input 
+                            id="embedding-url"
+                            placeholder="e.g. https://api.openai.com/v1"
+                            value={embeddingUrl}
+                            onChange={(e) => setEmbeddingUrl(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">Custom endpoint for embedding requests.</p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="embedding-key">Embedding API Key (Optional)</Label>
+                        <Input 
+                            id="embedding-key"
+                            type="password"
+                            placeholder="Enter your embedding API Key"
+                            value={embeddingKey}
+                            onChange={(e) => setEmbeddingKey(e.target.value)}
+                        />
                     </div>
                 </div>
                 <div className="flex justify-end pt-4 border-t">

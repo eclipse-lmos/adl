@@ -28,8 +28,9 @@ The server can be configured using the following environment variables:
 | `QDRANT_HOST` | Qdrant vector database host. | `localhost` |
 | `QDRANT_PORT` | Qdrant vector database port. | `6334` |
 | `QDRANT_COLLECTION_NAME` | Qdrant collection name for UseCase embeddings. | `usecase_embeddings` |
-| `ADL_FOLDER` | Optional folder for file-based ADL storage. | unset |
-| `WIDGET_FOLDER` | Optional folder for file-based widget storage. | unset |
+| `ADL_FOLDER` | Optional shared root for file-based ADL storage; widgets and test cases default to subfolders below it. | unset |
+| `WIDGET_FOLDER` | Optional override for file-based widget storage. Defaults to `<ADL_FOLDER>/widgets` or `adls/widgets` when file storage is enabled. | unset |
+| `TEST_CASE_FOLDER` | Optional override for file-based test case storage. Defaults to `<ADL_FOLDER>/test-cases` or `adls/test-cases` when file storage is enabled. | unset |
 
 ### Start the Server
 
