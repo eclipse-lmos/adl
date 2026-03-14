@@ -7,6 +7,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import org.eclipse.lmos.adl.server.currentOwner
 import org.eclipse.lmos.arc.agents.events.Event
 import org.eclipse.lmos.arc.agents.events.EventHandler
 import org.eclipse.lmos.arc.agents.llm.LLMFinishedEvent
@@ -43,6 +44,7 @@ class ClientEventPublisher : EventHandler<Event> {
             is LLMFinishedEvent -> {
                 tryPublish(
                     ServerSentEvent(
+                        id = currentOwner(),
                         // event = "LLMFinishedEvent",
                         data = json.writeValueAsString(
                             mapOf(
@@ -62,6 +64,7 @@ class ClientEventPublisher : EventHandler<Event> {
             is FilterExecutedEvent -> {
                 if (event.triggered && !filterEvents.contains(event.name)) tryPublish(
                     ServerSentEvent(
+                        id = currentOwner(),
                         data = json.writeValueAsString(
                             mapOf(
                                 "event" to "FilterExecutedEvent",
@@ -77,6 +80,7 @@ class ClientEventPublisher : EventHandler<Event> {
             is LLMFunctionCalledEvent -> {
                 if (false) tryPublish(
                     ServerSentEvent(
+                        id = currentOwner(),
                         data = json.writeValueAsString(
                             mapOf(
                                 "event" to "ToolCalledEvent",

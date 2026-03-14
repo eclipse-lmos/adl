@@ -38,6 +38,7 @@ import org.eclipse.lmos.adl.server.inbound.mutation.AdlStorageMutation
 import org.eclipse.lmos.adl.server.inbound.mutation.AdlValidationMutation
 import org.eclipse.lmos.adl.server.inbound.mutation.AgentMutation
 import org.eclipse.lmos.adl.server.inbound.mutation.McpMutation
+import org.eclipse.lmos.adl.server.inbound.mutation.OrganizationMutation
 import org.eclipse.lmos.adl.server.inbound.mutation.RolePromptMutation
 import org.eclipse.lmos.adl.server.inbound.mutation.SpellingMutation
 import org.eclipse.lmos.adl.server.inbound.mutation.SystemPromptMutation
@@ -49,8 +50,10 @@ import org.eclipse.lmos.adl.server.inbound.query.AdlQuery
 import org.eclipse.lmos.adl.server.inbound.query.AgentQuery
 import org.eclipse.lmos.adl.server.inbound.query.DashboardQuery
 import org.eclipse.lmos.adl.server.inbound.query.McpToolsQuery
+import org.eclipse.lmos.adl.server.inbound.query.OrganizationQuery
 import org.eclipse.lmos.adl.server.inbound.query.RolePromptQuery
 import org.eclipse.lmos.adl.server.inbound.query.TestCaseQuery
+import org.eclipse.lmos.adl.server.inbound.query.TestRunQuery
 import org.eclipse.lmos.adl.server.inbound.query.UserSettingsQuery
 import org.eclipse.lmos.adl.server.inbound.query.WidgetQuery
 import org.eclipse.lmos.adl.server.inbound.query.TagsQuery
@@ -58,28 +61,35 @@ import org.eclipse.lmos.adl.server.inbound.rest.clientEvents
 import org.eclipse.lmos.adl.server.inbound.rest.openAICompletions
 import org.eclipse.lmos.adl.server.repositories.AdlRepository
 import org.eclipse.lmos.adl.server.repositories.AgentRepository
+import org.eclipse.lmos.adl.server.repositories.OrganizationRepository
 import org.eclipse.lmos.adl.server.repositories.RolePromptRepository
+import org.eclipse.lmos.adl.server.repositories.TestRunRepository
 import org.eclipse.lmos.adl.server.repositories.UseCaseEmbeddingsRepository
 import org.eclipse.lmos.adl.server.repositories.impl.FileSystemAdlRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryAdlRepository
 import org.eclipse.lmos.adl.server.repositories.impl.db.PostgresAdlRepository
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import dev.langchain4j.model.ollama.OllamaEmbeddingModel
 import org.flywaydb.core.Flyway
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryAgentRepository
+import org.eclipse.lmos.adl.server.repositories.impl.InMemoryOrganizationRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryRolePromptRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryStatisticsRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryTestCaseRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryUseCaseEmbeddingsStore
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryUserSettingsRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryWidgetRepository
+import org.eclipse.lmos.adl.server.repositories.impl.InMemoryTestRunRepository
 import org.eclipse.lmos.adl.server.repositories.impl.FileSystemWidgetRepository
 import org.eclipse.lmos.adl.server.repositories.impl.FileSystemTestCaseRepository
+import org.eclipse.lmos.adl.server.repositories.impl.FileSystemTestRunRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryTagRepository
+import org.eclipse.lmos.adl.server.repositories.impl.db.PostgresOrganizationRepository
+import org.eclipse.lmos.adl.server.repositories.impl.db.PostgresTestRunRepository
 import org.eclipse.lmos.adl.server.services.ClientEventPublisher
 import org.eclipse.lmos.adl.server.services.ConversationEvaluator
 import org.eclipse.lmos.adl.server.services.McpService
+import org.eclipse.lmos.adl.server.services.OrganizationLifecycle
 import org.eclipse.lmos.adl.server.services.TestExecutor
 import org.eclipse.lmos.adl.server.services.UserDefinedCompleterProvider
 import org.eclipse.lmos.adl.server.sessions.InMemorySessions
@@ -90,22 +100,26 @@ internal data class FileRepositoryFolders(
     val adlFolder: File?,
     val widgetFolder: File?,
     val testCaseFolder: File?,
+    val testRunFolder: File?,
 )
 
 internal fun resolveFileRepositoryFolders(
     adlFolderOverride: String?,
     widgetFolderOverride: String?,
     testCaseFolderOverride: String?,
+    testRunFolderOverride: String?,
     localAdlFolder: File = File("adls"),
 ): FileRepositoryFolders {
     val adlFolder = adlFolderOverride?.let(::File) ?: localAdlFolder.takeIf { it.exists() }
     val widgetFolder = widgetFolderOverride?.let(::File) ?: adlFolder?.resolve("widgets")
     val testCaseFolder = testCaseFolderOverride?.let(::File) ?: adlFolder?.resolve("test-cases")
+    val testRunFolder = testRunFolderOverride?.let(::File) ?: adlFolder?.resolve("test-runs")
 
     return FileRepositoryFolders(
         adlFolder = adlFolder,
         widgetFolder = widgetFolder,
         testCaseFolder = testCaseFolder,
+        testRunFolder = testRunFolder,
     )
 }
 
@@ -120,6 +134,7 @@ fun startServer(
         adlFolderOverride = EnvConfig.adlFolder,
         widgetFolderOverride = EnvConfig.widgetFolder,
         testCaseFolderOverride = EnvConfig.testCaseFolder,
+        testRunFolderOverride = EnvConfig.testRunFolder,
     )
     val templateLoader = TemplateLoader()
     val sessions = InMemorySessions()
@@ -130,28 +145,37 @@ fun startServer(
     // .modelName("embeddinggemma").build()
     // val useCaseStore: UseCaseEmbeddingsRepository = QdrantUseCaseEmbeddingsStore(embeddingModel, qdrantConfig)
     val embeddingStore: UseCaseEmbeddingsRepository = InMemoryUseCaseEmbeddingsStore(embeddingModel)
-    val adlStorage: AdlRepository = when {
-        EnvConfig.databaseUrl != null -> {
-            val hikariConfig = HikariConfig().apply {
-                jdbcUrl = EnvConfig.databaseUrl
-                username = EnvConfig.databaseUser
-                password = EnvConfig.databasePassword
-                maximumPoolSize = 10
-            }
-            val dataSource = HikariDataSource(hikariConfig)
-            Flyway.configure().dataSource(dataSource).load().migrate()
-            PostgresAdlRepository(dataSource)
+    val dataSource = EnvConfig.databaseUrl?.let { databaseUrl ->
+        val hikariConfig = HikariConfig().apply {
+            jdbcUrl = databaseUrl
+            username = EnvConfig.databaseUser
+            password = EnvConfig.databasePassword
+            maximumPoolSize = 10
         }
+        HikariDataSource(hikariConfig).also { Flyway.configure().dataSource(it).load().migrate() }
+    }
+    val adlStorage: AdlRepository = when {
+        dataSource != null -> PostgresAdlRepository(dataSource)
 
         fileRepositoryFolders.adlFolder != null -> FileSystemAdlRepository(fileRepositoryFolders.adlFolder)
         else -> InMemoryAdlRepository()
     }
+    val organizationRepository: OrganizationRepository = when {
+        dataSource != null -> PostgresOrganizationRepository(dataSource)
+        else -> InMemoryOrganizationRepository()
+    }
+    val ownerAccessResolver = OwnerAccessResolver(organizationRepository)
     val rolePromptRepository: RolePromptRepository = InMemoryRolePromptRepository()
     val agentRepository: AgentRepository = InMemoryAgentRepository()
     val mcpService = McpService()
     val testCaseRepository = when {
         fileRepositoryFolders.testCaseFolder != null -> FileSystemTestCaseRepository(fileRepositoryFolders.testCaseFolder)
         else -> InMemoryTestCaseRepository()
+    }
+    val testRunRepository: TestRunRepository = when {
+        dataSource != null -> PostgresTestRunRepository(dataSource)
+        fileRepositoryFolders.testRunFolder != null -> FileSystemTestRunRepository(fileRepositoryFolders.testRunFolder)
+        else -> InMemoryTestRunRepository()
     }
     val userSettingsRepository = InMemoryUserSettingsRepository()
     val widgetRepository = when {
@@ -162,6 +186,19 @@ fun startServer(
     val completerProvider = UserDefinedCompleterProvider()
     val statisticsRepository = InMemoryStatisticsRepository()
     val tagRepository = InMemoryTagRepository()
+    val organizationLifecycle = OrganizationLifecycle(
+        organizationRepository = organizationRepository,
+        adlRepository = adlStorage,
+        widgetRepository = widgetRepository,
+        testCaseRepository = testCaseRepository,
+        testRunRepository = testRunRepository,
+        agentRepository = agentRepository,
+        rolePromptRepository = rolePromptRepository,
+        userSettingsRepository = userSettingsRepository,
+        statisticsRepository = statisticsRepository,
+        tagRepository = tagRepository,
+        embeddingsRepository = embeddingStore,
+    )
 
     // Agents
     val exampleAgent = createExampleAgent(completerProvider)
@@ -214,6 +251,9 @@ fun startServer(
             allowMethod(HttpMethod.Patch)
             allowHeader(HttpHeaders.Authorization)
             allowHeader(HttpHeaders.ContentType)
+            allowHeader(ORGANIZATION_API_KEY_HEADER)
+            allowHeader(LEGACY_ORGANIZATION_API_KEY_HEADER)
+            allowHeader(ORGANIZATION_ID_HEADER)
             anyHost()
         }
 
@@ -231,8 +271,10 @@ fun startServer(
                     AgentQuery(agentRepository),
                     McpToolsQuery(mcpService),
                     TestCaseQuery(testCaseRepository),
+                    TestRunQuery(testRunRepository),
                     UserSettingsQuery(userSettingsRepository),
                     WidgetQuery(widgetRepository),
+                    OrganizationQuery(organizationRepository),
                     RolePromptQuery(rolePromptRepository),
                     DashboardQuery(adlStorage, statisticsRepository),
                     TagsQuery(tagRepository),
@@ -251,6 +293,7 @@ fun startServer(
                     TestCreatorMutation(
                         testCreatorAgent,
                         testCaseRepository,
+                        testRunRepository,
                         testExecutor,
                         adlStorage,
                         testVariantAgent
@@ -258,11 +301,12 @@ fun startServer(
                     AdlValidationMutation(),
                     AdlAssistantMutation(assistantAgent, adlStorage, statisticsRepository, userSettingsRepository),
                     WidgetsMutation(facesAgent, widgetRepository),
+                    OrganizationMutation(organizationRepository, organizationLifecycle),
                     RolePromptMutation(rolePromptRepository),
                 )
             }
             server {
-                contextFactory = DefaultKtorGraphQLContextFactory()
+                contextFactory = DefaultKtorGraphQLContextFactory(ownerAccessResolver)
             }
             engine {
                 exceptionHandler = GlobalExceptionHandler()
@@ -270,14 +314,20 @@ fun startServer(
         }
 
         install(StatusPages) {
+            exception<OwnerAuthenticationException> { call, cause ->
+                call.respond(HttpStatusCode.Unauthorized, cause.message ?: "Authentication required")
+            }
+            exception<OwnerAuthorizationException> { call, cause ->
+                call.respond(HttpStatusCode.Forbidden, cause.message ?: "Access forbidden")
+            }
             defaultGraphQLStatusPages()
         }
 
         install(SSE)
 
         routing {
-            openAICompletions(assistantAgent)
-            clientEvents(clientEventPublisher)
+            openAICompletions(assistantAgent, ownerAccessResolver)
+            clientEvents(clientEventPublisher, ownerAccessResolver)
             graphiQLRoute()
             graphQLPostRoute()
 
@@ -286,6 +336,10 @@ fun startServer(
                     // read from classpath
                     if (requestedPath.startsWith("prompts")) call.respondText(
                         text = this::class.java.classLoader.getResource("static/prompts.html")!!.readText(),
+                        contentType = ContentType.Text.Html,
+                    )
+                    if (requestedPath.startsWith("settings")) call.respondText(
+                        text = this::class.java.classLoader.getResource("static/settings.html")!!.readText(),
                         contentType = ContentType.Text.Html,
                     )
                     if (requestedPath.startsWith("roles")) call.respondText(
@@ -310,6 +364,10 @@ fun startServer(
                     )
                     if (requestedPath.startsWith("analytics")) call.respondText(
                         text = this::class.java.classLoader.getResource("static/analytics.html")!!.readText(),
+                        contentType = ContentType.Text.Html,
+                    )
+                    if (requestedPath.startsWith("organizations")) call.respondText(
+                        text = this::class.java.classLoader.getResource("static/organizations.html")!!.readText(),
                         contentType = ContentType.Text.Html,
                     )
                     if (requestedPath.startsWith("adls")) call.respondText(

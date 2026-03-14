@@ -1,0 +1,62 @@
+' SPDX-FileCopyrightText: 2026 Deutsche Telekom AG and others
+' SPDX-License-Identifier: Apache-2.0
+
+@startuml
+skinparam shadowing false
+hide methods
+hide stereotypes
+
+class Organization {
+  +id: String
+  +name: String
+  +descriptions: String
+  +apiKeys: List<OrganizationApiKey>
+}
+
+class OrganizationApiKey {
+  +id: String
+  +label: String
+  +hashedKey: String
+  +maskedKey: String
+  +createdAt: String
+  +revoked: Boolean
+}
+
+class Adl {
+  +owner: String
+}
+
+class AdlVersion {
+  +owner: String
+}
+
+class Widget {
+  +owner: String
+}
+
+class TestCase {
+  +owner: String
+}
+
+class UserSettings {
+  +owner: String
+}
+
+class RolePrompt {
+  +owner: String
+}
+
+class Agent {
+  +owner: String
+}
+
+Organization "1" *-- "many" OrganizationApiKey
+Organization --> Adl : id == owner
+Organization --> AdlVersion : id == owner
+Organization --> Widget : id == owner
+Organization --> TestCase : id == owner
+Organization --> UserSettings : id == owner
+Organization --> RolePrompt : id == owner
+Organization --> Agent : id == owner
+@enduml
+

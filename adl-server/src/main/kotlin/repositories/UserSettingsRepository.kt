@@ -9,5 +9,6 @@ import org.eclipse.lmos.adl.server.models.UserSettings
 interface UserSettingsRepository {
     suspend fun save(settings: UserSettings): UserSettings
     suspend fun get(): UserSettings?
+    suspend fun delete(): Boolean
 }
 

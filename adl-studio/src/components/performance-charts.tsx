@@ -7,20 +7,21 @@ import VerdictIndicator from './verdict-indicator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from './ui/button';
+import type { ConversationTurn, TestExecutionResult } from '@/lib/data';
 
 
 type PerformanceChartsProps = {
   accuracy: number | null;
-  results: any[] | null;
+  results: TestExecutionResult[] | null;
   verdict: string | null;
   reasons: string[] | null;
   missingRequirements: string[] | null;
   violations: string[] | null;
-  onViewTestCase: (testCaseId: string) => void;
+  onViewTestCaseAction: (testCaseId: string) => void;
   isTesting: boolean;
 };
 
-function ConversationMessage({ message }: { message: { role: 'user' | 'assistant'; content: string } }) {
+function ConversationMessage({ message }: { message: ConversationTurn }) {
   const isUser = message.role === 'user';
   return (
     <div className={`flex items-start gap-4`}>
@@ -40,7 +41,7 @@ function ConversationMessage({ message }: { message: { role: 'user' | 'assistant
   );
 }
 
-export default function PerformanceCharts({ accuracy, results, verdict, reasons, missingRequirements, violations, onViewTestCase, isTesting }: PerformanceChartsProps) {
+export default function PerformanceCharts({ accuracy, results, verdict, reasons, missingRequirements, violations, onViewTestCaseAction, isTesting }: PerformanceChartsProps) {
   const hasAccuracyData = accuracy !== null;
   const hasResultsData = results && results.length > 0;
   const hasLegacyEvalData = verdict !== null || (reasons !== null && reasons.length > 0) || (missingRequirements && missingRequirements.length > 0) || (violations && violations.length > 0);
@@ -144,6 +145,28 @@ export default function PerformanceCharts({ accuracy, results, verdict, reasons,
                                     </ul>
                                 </div>
                             )}
+                            {result.failureReason && (
+                                <div>
+                                  <h4 className="font-semibold text-red-600 dark:text-red-500">Failure Reason</h4>
+                                  <p className="text-sm text-muted-foreground mt-1">{result.failureReason}</p>
+                                </div>
+                            )}
+                            {result.executedVariantIndex !== null && result.executedVariantIndex !== undefined && (
+                                <div>
+                                  <h4 className="font-semibold">Executed Variant</h4>
+                                  <Badge variant="outline" className="mt-2 font-mono">#{result.executedVariantIndex}</Badge>
+                                </div>
+                            )}
+                            {result.executedConversation && result.executedConversation.length > 0 && (
+                                <div>
+                                  <h4 className="font-semibold">Executed Conversation</h4>
+                                  <div className="mt-2 space-y-4">
+                                    {result.executedConversation.map((msg, i) => (
+                                      <ConversationMessage key={i} message={msg} />
+                                    ))}
+                                  </div>
+                                </div>
+                            )}
                             {result.useCases && result.useCases.length > 0 && (
                                 <div>
                                 <h4 className="font-semibold">Use Cases Applied</h4>
@@ -158,14 +181,14 @@ export default function PerformanceCharts({ accuracy, results, verdict, reasons,
                                 <div>
                                 <h4 className="font-semibold">Actual Conversation</h4>
                                 <div className="mt-2 space-y-4">
-                                    {result.actualConversation.map((msg: any, i: number) => (
+                                    {result.actualConversation.map((msg, i: number) => (
                                     <ConversationMessage key={i} message={msg} />
                                     ))}
                                 </div>
                                 </div>
                             )}
                              <div className="flex justify-end pt-4">
-                                <Button variant="link" size="sm" onClick={() => onViewTestCase(result.testCaseId)}>
+                                <Button variant="link" size="sm" onClick={() => onViewTestCaseAction(result.testCaseId)}>
                                     View Test Case
                                 </Button>
                             </div>

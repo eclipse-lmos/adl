@@ -8,12 +8,14 @@ import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Mutation
 import graphql.schema.DataFetchingEnvironment
 import kotlinx.serialization.Serializable
+import org.eclipse.lmos.adl.server.currentOwner
 import org.eclipse.lmos.adl.server.withRequestOwner
 import org.eclipse.lmos.adl.server.agents.TestVariant
 import org.eclipse.lmos.adl.server.models.TestCase
 import org.eclipse.lmos.adl.server.models.TestRunResult
 import org.eclipse.lmos.adl.server.models.ConversationTurn
 import org.eclipse.lmos.adl.server.repositories.AdlRepository
+import org.eclipse.lmos.adl.server.repositories.TestRunRepository
 import org.eclipse.lmos.adl.server.services.TestExecutor
 import org.eclipse.lmos.adl.server.repositories.TestCaseRepository
 import org.eclipse.lmos.arc.agents.ConversationAgent
@@ -21,6 +23,8 @@ import org.eclipse.lmos.arc.agents.agent.process
 import org.eclipse.lmos.arc.assistants.support.usecases.toUseCases
 import org.eclipse.lmos.arc.core.getOrThrow
 import org.slf4j.LoggerFactory
+import java.time.Instant
+import java.util.UUID
 import kotlin.collections.map
 
 /**
@@ -29,6 +33,7 @@ import kotlin.collections.map
 class TestCreatorMutation(
     private val testCreatorAgent: ConversationAgent,
     private val testCaseRepository: TestCaseRepository,
+    private val testRunRepository: TestRunRepository,
     private val testExecutor: TestExecutor,
     private val adlRepository: AdlRepository,
     private val testVariantAgent: ConversationAgent,
@@ -83,13 +88,40 @@ class TestCreatorMutation(
         }
     }
 
+    /**
+     * Executes tests for a given ADL, persists the run, and returns the stored snapshot.
+     */
     @GraphQLDescription("Executes tests for a given Use Case.")
     suspend fun executeTests(
         @GraphQLDescription("The ADL identifier") adlId: String,
         @GraphQLDescription("The Test Case ID") testCaseId: String? = null,
         environment: DataFetchingEnvironment? = null,
     ): TestRunResult {
-        return withRequestOwner(environment) { testExecutor.executeTests(adlId, testCaseId) }
+        log.info("Executing tests for ADL {} with requested test case {}", adlId, testCaseId)
+        return withRequestOwner(environment) {
+            val executedRun = testExecutor.executeTests(adlId, testCaseId)
+            testRunRepository.save(
+                executedRun.copy(
+                    id = UUID.randomUUID().toString(),
+                    adlId = adlId,
+                    owner = currentOwner(),
+                    createdAt = Instant.now().toString(),
+                    requestedTestCaseId = testCaseId,
+                )
+            )
+        }
+    }
+
+    /**
+     * Deletes a persisted test run for the current owner scope.
+     */
+    @GraphQLDescription("Deletes a persisted test run by its ID.")
+    suspend fun deleteTestRun(
+        @GraphQLDescription("The ID of the persisted test run to delete") id: String,
+        environment: DataFetchingEnvironment? = null,
+    ): Boolean {
+        log.info("Deleting persisted test run {}", id)
+        return withRequestOwner(environment) { testRunRepository.delete(id) }
     }
 
     @GraphQLDescription("Deletes a test case by its ID.")
@@ -144,6 +176,7 @@ class TestCreatorMutation(
         return withRequestOwner(environment) {
             val testCase = TestCase(
                 useCaseId = input.useCaseId,
+                adlId = input.adlId,
                 name = input.name,
                 description = input.description,
                 expectedConversation = input.expectedConversation,
@@ -176,7 +209,7 @@ class TestCreatorMutation(
  */
 @Serializable
 data class NewTestsResponse(
-    @GraphQLDescription("The number of test cases created")
+    @param:GraphQLDescription("The number of test cases created")
     val count: Int,
 )
 
@@ -193,15 +226,15 @@ data class TestCreatorInput(
  */
 @Serializable
 data class UpdateTestCaseInput(
-    @GraphQLDescription("The ID of the test case to update")
+    @param:GraphQLDescription("The ID of the test case to update")
     val id: String,
-    @GraphQLDescription("The new name of the test case")
+    @param:GraphQLDescription("The new name of the test case")
     val name: String? = null,
-    @GraphQLDescription("The new description of the test case")
+    @param:GraphQLDescription("The new description of the test case")
     val description: String? = null,
-    @GraphQLDescription("The new expected conversation")
+    @param:GraphQLDescription("The new expected conversation")
     val expectedConversation: List<ConversationTurn>? = null,
-    @GraphQLDescription("The contract flag")
+    @param:GraphQLDescription("The contract flag")
     val contract: Boolean? = null,
 )
 
@@ -210,14 +243,16 @@ data class UpdateTestCaseInput(
  */
 @Serializable
 data class AddTestCaseInput(
-    @GraphQLDescription("The Use Case ID associated with this test")
+    @param:GraphQLDescription("The Use Case ID associated with this test")
     val useCaseId: String,
-    @GraphQLDescription("The name of the test case")
+    @param:GraphQLDescription("The ADL ID associated with this test")
+    val adlId: String? = null,
+    @param:GraphQLDescription("The name of the test case")
     val name: String,
-    @GraphQLDescription("The description of the test case")
+    @param:GraphQLDescription("The description of the test case")
     val description: String,
-    @GraphQLDescription("The expected conversation")
+    @param:GraphQLDescription("The expected conversation")
     val expectedConversation: List<ConversationTurn>,
-    @GraphQLDescription("The contract flag")
+    @param:GraphQLDescription("The contract flag")
     val contract: Boolean? = null,
 )

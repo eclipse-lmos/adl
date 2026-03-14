@@ -78,7 +78,10 @@ class PostgresAdlRepository(dataSource: DataSource) : AdlRepository {
 
     override suspend fun deleteById(id: String): Unit = newSuspendedTransaction {
         val owner = currentOwner()
-        AdlsTable.deleteWhere { (AdlsTable.owner eq owner) and (AdlsTable.id eq id) }
+        val deletedRows =
+            AdlVersionsTable.deleteWhere { (AdlVersionsTable.owner eq owner) and (AdlVersionsTable.adlId eq id) } +
+                AdlsTable.deleteWhere { (AdlsTable.owner eq owner) and (AdlsTable.id eq id) }
+        deletedRows
         Unit
     }
 

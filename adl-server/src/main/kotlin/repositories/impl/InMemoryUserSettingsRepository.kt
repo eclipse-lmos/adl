@@ -21,5 +21,9 @@ class InMemoryUserSettingsRepository : UserSettingsRepository {
     override suspend fun get(): UserSettings? {
         return storage[currentOwner()]
     }
+
+    override suspend fun delete(): Boolean {
+        return storage.remove(currentOwner()) != null
+    }
 }
 

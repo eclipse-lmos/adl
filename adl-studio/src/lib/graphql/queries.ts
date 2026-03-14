@@ -1,3 +1,52 @@
+const TestRunResultFields = `
+  id
+  adlId
+  owner
+  createdAt
+  requestedTestCaseId
+  overallScore
+  results {
+    score
+    status
+    failureReason
+    executedVariantIndex
+    executedConversation {
+      content
+      role
+    }
+    actualConversation {
+      content
+      role
+    }
+    testCase {
+      id
+      adlId
+      useCaseId
+      name
+      description
+      contract
+      expectedConversation {
+        content
+        role
+      }
+    }
+    details {
+      evidence {
+        mapsTo
+        quote
+      }
+      missingRequirements
+      reasons
+      score
+      verdict
+      violations
+    }
+    testCaseId
+    testCaseName
+    useCases
+  }
+`;
+
 export const TestsQuery = `
   query TestsQuery($useCaseId: String!) {
     testCases(useCaseId: $useCaseId) {
@@ -34,6 +83,22 @@ export const SearchByIdQuery = `
       content
       examples
       output
+    }
+  }
+`;
+
+export const TestRunsQuery = `
+  query TestRuns($adlId: String!, $limit: Int!) {
+    testRuns(adlId: $adlId, limit: $limit) {
+      ${TestRunResultFields}
+    }
+  }
+`;
+
+export const TestRunQuery = `
+  query TestRun($id: String!) {
+    testRun(id: $id) {
+      ${TestRunResultFields}
     }
   }
 `;
@@ -182,3 +247,38 @@ export const GetAgentQuery = `
     }
   }
 `;
+
+export const OrganizationsQuery = `
+  query Organizations {
+    organizations {
+      id
+      name
+      descriptions
+      apiKeys {
+        id
+        label
+        maskedKey
+        createdAt
+        revoked
+      }
+    }
+  }
+`;
+
+export const OrganizationQuery = `
+  query Organization($id: String!) {
+    organization(id: $id) {
+      id
+      name
+      descriptions
+      apiKeys {
+        id
+        label
+        maskedKey
+        createdAt
+        revoked
+      }
+    }
+  }
+`;
+

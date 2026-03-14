@@ -31,6 +31,10 @@ The server can be configured using the following environment variables:
 | `ADL_FOLDER` | Optional shared root for file-based ADL storage; widgets and test cases default to subfolders below it. | unset |
 | `WIDGET_FOLDER` | Optional override for file-based widget storage. Defaults to `<ADL_FOLDER>/widgets` or `adls/widgets` when file storage is enabled. | unset |
 | `TEST_CASE_FOLDER` | Optional override for file-based test case storage. Defaults to `<ADL_FOLDER>/test-cases` or `adls/test-cases` when file storage is enabled. | unset |
+| `TEST_RUN_FOLDER` | Optional override for file-based persisted test run storage. Defaults to `<ADL_FOLDER>/test-runs` or `adls/test-runs` when file storage is enabled. | unset |
+| `DATABASE_URL` | Optional PostgreSQL JDBC connection string. Enables Flyway migrations and persistent organization metadata. | unset |
+| `DATABASE_USER` | PostgreSQL username used with `DATABASE_URL`. | `postgres` |
+| `DATABASE_PASSWORD` | PostgreSQL password used with `DATABASE_URL`. | `postgres` |
 
 ### Start the Server
 
@@ -79,6 +83,205 @@ POST http://localhost:8080/graphql
 
 You can explore the API using GraphiQL at:
 `http://localhost:8080/graphiql` (when running in dev mode or if enabled)
+
+### Organization owner access
+
+Owner-scoped data is resolved from request headers:
+
+| Header | Purpose |
+| --- | --- |
+| `X-Organization-Id` | Explicitly selects the target organization/owner. Use `public` for backwards-compatible public mode. |
+| `X-Api-Key` | Organization API key. Required when `X-Organization-Id` targets a non-public organization. |
+| `X-Organization-Api-Key` | Legacy alias for `X-Api-Key`. |
+
+If no organization is selected, the server keeps using the default owner `public` for local development. If `X-Organization-Id` targets a non-public organization and no valid key is supplied, GraphQL returns an authorization error and REST/SSE return `401` or `403`.
+
+#### Organization bootstrap and management
+
+Organization management is intentionally limited to public administration mode. The following operations are available on the GraphQL endpoint:
+
+```graphql
+query {
+  organizations {
+    id
+    name
+    descriptions
+    apiKeys {
+      id
+      label
+      maskedKey
+      createdAt
+      revoked
+    }
+  }
+}
+
+mutation {
+  createOrganization(
+    id: "telekom-demo"
+    name: "Telekom Demo Org"
+    descriptions: "Internal sandbox organisation for support flows."
+    initialApiKeyLabel: "studio"
+  ) {
+    createdApiKey
+    organization {
+      id
+      name
+      descriptions
+    }
+  }
+}
+
+mutation {
+  createOrganizationApiKey(organizationId: "telekom-demo", label: "ci") {
+    createdApiKey
+    organization {
+      id
+      apiKeys {
+        id
+        label
+        maskedKey
+        revoked
+      }
+    }
+  }
+}
+
+mutation {
+  revokeOrganizationApiKey(organizationId: "telekom-demo", apiKeyId: "key-1") {
+    id
+    apiKeys {
+      id
+      label
+      revoked
+    }
+  }
+}
+```
+
+#### GraphQL example with organization headers
+
+```bash
+curl -X POST http://localhost:8080/graphql \
+  -H 'Content-Type: application/json' \
+  -H 'X-Organization-Id: telekom-demo' \
+  -H 'X-Api-Key: adl_org_live_abc123' \
+  --data '{"query":"query { widgets { id name owner } }"}'
+```
+
+#### SSE example with organization headers
+
+```bash
+curl -N http://localhost:8080/events \
+  -H 'Accept: text/event-stream' \
+  -H 'X-Organization-Id: telekom-demo' \
+  -H 'X-Api-Key: adl_org_live_abc123'
+```
+
+#### OpenAI-compatible REST example with organization headers
+
+```bash
+curl -X POST http://localhost:8080/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -H 'X-Organization-Id: telekom-demo' \
+  -H 'X-Api-Key: adl_org_live_abc123' \
+  --data '{
+    "model": "assistant",
+    "messages": [
+      {"role": "user", "content": "Hello"}
+    ]
+  }'
+```
+
+### Persisted test run history
+
+`executeTests` now persists every run and returns the stored run including metadata such as `id`, `owner`, `createdAt`, the requested single test case, and detailed result snapshots.
+
+#### Execute and persist a full test suite
+
+```graphql
+mutation {
+  executeTests(adlId: "password_reset") {
+    id
+    adlId
+    owner
+    createdAt
+    requestedTestCaseId
+    overallScore
+    results {
+      testCaseId
+      testCaseName
+      status
+      score
+      executedVariantIndex
+      failureReason
+      executedConversation {
+        role
+        content
+      }
+      actualConversation {
+        role
+        content
+      }
+      testCase {
+        id
+        name
+        description
+        contract
+      }
+    }
+  }
+}
+```
+
+#### List persisted test runs for an ADL
+
+```graphql
+query {
+  testRuns(adlId: "password_reset", limit: 20) {
+    id
+    createdAt
+    requestedTestCaseId
+    overallScore
+    results {
+      testCaseId
+      testCaseName
+      status
+      score
+    }
+  }
+}
+```
+
+#### Load one persisted test run
+
+```graphql
+query {
+  testRun(id: "testrun-123") {
+    id
+    adlId
+    owner
+    createdAt
+    overallScore
+    results {
+      testCaseId
+      testCaseName
+      details {
+        verdict
+        reasons
+      }
+    }
+  }
+}
+```
+
+#### Delete one persisted test run
+
+```graphql
+mutation {
+  deleteTestRun(id: "testrun-123")
+}
+```
 
 #### 1. Core ADL Operations
 

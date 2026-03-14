@@ -1,0 +1,37 @@
+' SPDX-FileCopyrightText: 2026 Deutsche Telekom AG and others
+' SPDX-License-Identifier: Apache-2.0
+
+@startuml
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+
+actor User
+participant "adl-studio" as UI
+participant "ADL Server\nGraphQL / REST / SSE" as API
+participant "OwnerAccessResolver" as Resolver
+participant "Owner Context" as Ctx
+participant "Owner-scoped\nRepositories" as Repo
+
+User -> UI : Select organization + enter API key
+UI -> API : Request + X-Organization-Id + X-Api-Key
+API -> Resolver : resolve(headers)
+Resolver --> API : owner = telekom-demo
+API -> Ctx : withOwner("telekom-demo")
+API -> Repo : list()/get()/save()/delete()
+Repo -> Ctx : currentOwner()
+Repo --> API : only telekom-demo data
+API --> UI : authorized response
+
+User -> UI : Request without key for non-public org
+UI -> API : Request + X-Organization-Id: telekom-demo
+API -> Resolver : resolve(headers)
+Resolver --> API : failure = 401 Missing organization API key
+API --> UI : GraphQL auth error / REST-SSE 401
+
+User -> UI : Request with invalid key
+UI -> API : Request + X-Organization-Id + invalid X-Api-Key
+API -> Resolver : resolve(headers)
+Resolver --> API : failure = 403 Invalid or revoked organization API key
+API --> UI : GraphQL auth error / REST-SSE 403
+@enduml
+

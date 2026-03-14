@@ -1,0 +1,40 @@
+' SPDX-FileCopyrightText: 2026 Deutsche Telekom AG and others
+' SPDX-License-Identifier: Apache-2.0
+
+@startuml
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+
+actor User
+participant "adl-studio\nPrompt Editor" as UI
+participant "GraphQL Mutation\nexecuteTests" as API
+participant "Owner Context" as Ctx
+participant "TestExecutor" as Executor
+participant "TestRunRepository" as Repo
+participant "TestCaseRepository" as TestCases
+participant "AdlRepository" as Adls
+
+User -> UI: Run tests
+UI -> API: executeTests(adlId, testCaseId?)
+API -> Ctx: withRequestOwner(environment)
+API -> Executor: executeTests(adlId, testCaseId?)
+Executor -> Adls: getAsUseCases(adlId)
+Executor -> TestCases: findByADLId(adlId) / findById(testCaseId)
+Executor --> API: Detailed TestRunResult
+API -> Repo: save(TestRunResult)
+Repo --> API: Persisted TestRunResult(id, createdAt)
+API --> UI: Stored run returned
+
+User -> UI: Open prompt later
+UI -> API: testRuns(adlId)
+API -> Repo: findByAdlId(adlId)
+Repo --> API: Stored runs
+API --> UI: Run history
+
+User -> UI: Delete stored run
+UI -> API: deleteTestRun(id)
+API -> Repo: delete(id)
+Repo --> API: true
+API --> UI: Updated history
+@enduml
+

@@ -12,11 +12,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { badgeVariants } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import type { Message } from '@/lib/data';
+import type { ConversationTurn, Message } from '@/lib/data';
 import { cn } from '@/lib/utils';
 
+type ConversationRenderableMessage = ConversationTurn & Pick<Message, 'context' | 'toolCalls'>;
+
 type ConversationMessageProps = {
-    message: Message;
+    message: ConversationRenderableMessage;
     isEditing?: boolean;
     onContentChange?: (content: string) => void;
     onRemove?: () => void;

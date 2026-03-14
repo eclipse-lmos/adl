@@ -1,3 +1,52 @@
+const TestRunResultFields = `
+  id
+  adlId
+  owner
+  createdAt
+  requestedTestCaseId
+  overallScore
+  results {
+    score
+    status
+    failureReason
+    executedVariantIndex
+    executedConversation {
+      content
+      role
+    }
+    actualConversation {
+      content
+      role
+    }
+    testCase {
+      id
+      adlId
+      useCaseId
+      name
+      description
+      contract
+      expectedConversation {
+        content
+        role
+      }
+    }
+    details {
+      evidence {
+        mapsTo
+        quote
+      }
+      missingRequirements
+      reasons
+      score
+      verdict
+      violations
+    }
+    testCaseId
+    testCaseName
+    useCases
+  }
+`;
+
 export const AssistantMutation = `
   mutation Assistant($input: AssistantInput!) {
     assistant(input: $input) {
@@ -91,30 +140,14 @@ export const ImproveUseCaseMutation = `
 export const ExecuteTestsMutation = `
   mutation executeTests($id: String!, $testCaseId: String) {
     executeTests(adlId: $id, testCaseId: $testCaseId) {
-      overallScore
-      results {
-        score
-        status
-        actualConversation {
-          content
-          role
-        }
-        details {
-          evidence {
-            mapsTo
-            quote
-          }
-          missingRequirements
-          reasons
-          score
-          verdict
-          violations
-        }
-        testCaseId
-        testCaseName
-        useCases
-      }
+      ${TestRunResultFields}
     }
+  }
+`;
+
+export const DeleteTestRunMutation = `
+  mutation deleteTestRun($id: String!) {
+    deleteTestRun(id: $id)
   }
 `;
 
@@ -255,6 +288,114 @@ export const SaveAgentMutation = `
       corePrompt
       active
     }
+  }
+`;
+
+export const CreateOrganizationMutation = `
+  mutation CreateOrganization(
+    $id: String!
+    $name: String!
+    $descriptions: String!
+  ) {
+    createOrganization(
+      id: $id
+      name: $name
+      descriptions: $descriptions
+    ) {
+      createdApiKey
+      organization {
+        id
+        name
+        descriptions
+        apiKeys {
+          id
+          label
+          maskedKey
+          createdAt
+          revoked
+        }
+      }
+    }
+  }
+`;
+
+export const UpdateOrganizationMutation = `
+  mutation UpdateOrganization($id: String!, $name: String!, $descriptions: String!) {
+    updateOrganization(id: $id, name: $name, descriptions: $descriptions) {
+      id
+      name
+      descriptions
+      apiKeys {
+        id
+        label
+        maskedKey
+        createdAt
+        revoked
+      }
+    }
+  }
+`;
+
+export const CreateOrganizationApiKeyMutation = `
+  mutation CreateOrganizationApiKey($organizationId: String!, $label: String!) {
+    createOrganizationApiKey(organizationId: $organizationId, label: $label) {
+      createdApiKey
+      organization {
+        id
+        name
+        descriptions
+        apiKeys {
+          id
+          label
+          maskedKey
+          createdAt
+          revoked
+        }
+      }
+    }
+  }
+`;
+
+export const RevokeOrganizationApiKeyMutation = `
+  mutation RevokeOrganizationApiKey($organizationId: String!, $apiKeyId: String!) {
+    revokeOrganizationApiKey(organizationId: $organizationId, apiKeyId: $apiKeyId) {
+      id
+      name
+      descriptions
+      apiKeys {
+        id
+        label
+        maskedKey
+        createdAt
+        revoked
+      }
+    }
+  }
+`;
+
+export const RotateOrganizationApiKeyMutation = `
+  mutation RotateOrganizationApiKey($organizationId: String!, $apiKeyId: String!, $label: String) {
+    rotateOrganizationApiKey(organizationId: $organizationId, apiKeyId: $apiKeyId, label: $label) {
+      createdApiKey
+      organization {
+        id
+        name
+        descriptions
+        apiKeys {
+          id
+          label
+          maskedKey
+          createdAt
+          revoked
+        }
+      }
+    }
+  }
+`;
+
+export const DeleteOrganizationMutation = `
+  mutation DeleteOrganization($id: String!) {
+    deleteOrganization(id: $id)
   }
 `;
 

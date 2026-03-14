@@ -59,4 +59,12 @@ class InMemoryStatisticsRepository : StatisticsRepository {
             return scores.min() to scores.max()
         }
     }
+
+    override suspend fun clear() {
+        val owner = currentOwner()
+        useCaseCounts.remove(owner)
+        useCaseComplianceScores.remove(owner)
+        totalResponseTimeMillis.remove(owner)
+        requestCount.remove(owner)
+    }
 }

@@ -82,6 +82,14 @@ object EnvConfig {
     val testCaseFolder get() = System.getenv("TEST_CASE_FOLDER")
 
     /**
+     * Test run storage folder override.
+     *
+     * Environment variable: TEST_RUN_FOLDER
+     * Default value: null (falls back to `<ADL_FOLDER>/test-runs` or `adls/test-runs` when file storage is enabled)
+     */
+    val testRunFolder get() = System.getenv("TEST_RUN_FOLDER")
+
+    /**
      * PostgreSQL database JDBC URL.
      *
      * Environment variable: DATABASE_URL

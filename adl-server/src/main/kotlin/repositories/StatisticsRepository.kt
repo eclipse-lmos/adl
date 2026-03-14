@@ -12,4 +12,5 @@ interface StatisticsRepository {
     suspend fun getMostUsedUseCase(): List<Pair<String, Int>>
     suspend fun getAverageResponseTime(): Double
     suspend fun getComplianceScores(useCaseId: String): Pair<Int, Int>?
+    suspend fun clear()
 }

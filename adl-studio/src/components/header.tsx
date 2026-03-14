@@ -1,12 +1,15 @@
 'use client';
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { 
+  Building2,
   Settings, 
   LogOut, 
   User as UserIcon, 
   BarChart3, 
   Bot, 
+  ChevronsUpDown,
   FileJson, 
   LayoutTemplate, 
   Users, 
@@ -22,13 +25,42 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  DEFAULT_ORGANIZATION_ID,
+  getKnownOrganizations,
+  readOrganizationAccess,
+  subscribeToOrganizationAccess,
+  writeOrganizationAccess,
+} from "@/lib/organization-access";
 
 export default function AppHeader() {
   const { user, loading } = useUser();
   const auth = useAuth();
+  const [organizationAccess, setOrganizationAccess] = useState(() => readOrganizationAccess());
+
+  useEffect(() => {
+    setOrganizationAccess(readOrganizationAccess());
+    return subscribeToOrganizationAccess((state) => {
+      setOrganizationAccess(state);
+    });
+  }, []);
+
+  const knownOrganizations = getKnownOrganizations(organizationAccess);
+  const activeOrganization = knownOrganizations.find((organization) => organization.id === organizationAccess.activeOrganizationId)
+    ?? knownOrganizations[0];
+
+  const handleOrganizationSwitch = (organizationId: string) => {
+    if (organizationId === DEFAULT_ORGANIZATION_ID || organizationId === organizationAccess.authorizedOrganizationId) {
+      writeOrganizationAccess({
+        activeOrganizationId: organizationId,
+      });
+    }
+  };
 
   const handleLogout = async () => {
     if (!auth) return;
@@ -85,6 +117,46 @@ export default function AppHeader() {
               <span className="hidden md:inline">Assistant</span>
             </Button>
           </Link>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="hidden lg:flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground hover:border-border"
+              >
+                <Building2 className="h-4 w-4 text-primary" />
+                <span className="uppercase tracking-wide">Org</span>
+                <span className="max-w-[12rem] truncate text-foreground">{activeOrganization.name}</span>
+                <span className="font-mono text-[11px] text-muted-foreground">{activeOrganization.id}</span>
+                <ChevronsUpDown className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-72" align="end">
+              <DropdownMenuLabel>Aktive Organisation</DropdownMenuLabel>
+              <DropdownMenuLabel className="pt-0 font-normal text-xs text-muted-foreground">
+                Wechsel zwischen `public` und der per API-Key autorisierten Organisation.
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup
+                value={organizationAccess.activeOrganizationId}
+                onValueChange={handleOrganizationSwitch}
+              >
+                {knownOrganizations.map((organization) => (
+                  <DropdownMenuRadioItem key={organization.id} value={organization.id}>
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate">{organization.name}</span>
+                      <span className="font-mono text-[11px] text-muted-foreground">{organization.id}</span>
+                    </div>
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/organizations">Organisationen verwalten</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           
           <Separator orientation="vertical" className="h-6 mx-1 hidden md:block" />
           

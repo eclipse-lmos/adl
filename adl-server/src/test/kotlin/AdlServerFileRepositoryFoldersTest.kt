@@ -24,12 +24,14 @@ class AdlServerFileRepositoryFoldersTest {
             adlFolderOverride = null,
             widgetFolderOverride = null,
             testCaseFolderOverride = null,
+            testRunFolderOverride = null,
             localAdlFolder = localAdlFolder,
         )
 
         assertEquals(localAdlFolder, folders.adlFolder)
         assertEquals(localAdlFolder.resolve("widgets"), folders.widgetFolder)
         assertEquals(localAdlFolder.resolve("test-cases"), folders.testCaseFolder)
+        assertEquals(localAdlFolder.resolve("test-runs"), folders.testRunFolder)
     }
 
     @Test
@@ -40,12 +42,14 @@ class AdlServerFileRepositoryFoldersTest {
             adlFolderOverride = configuredRoot.absolutePath,
             widgetFolderOverride = null,
             testCaseFolderOverride = null,
+            testRunFolderOverride = null,
             localAdlFolder = File(tempDir.toFile(), "unused"),
         )
 
         assertEquals(configuredRoot, folders.adlFolder)
         assertEquals(configuredRoot.resolve("widgets"), folders.widgetFolder)
         assertEquals(configuredRoot.resolve("test-cases"), folders.testCaseFolder)
+        assertEquals(configuredRoot.resolve("test-runs"), folders.testRunFolder)
     }
 
     @Test
@@ -53,17 +57,20 @@ class AdlServerFileRepositoryFoldersTest {
         val configuredRoot = tempDir.resolve("custom-adls").toFile()
         val widgetOverride = tempDir.resolve("custom-widgets").toFile()
         val testCaseOverride = tempDir.resolve("custom-tests").toFile()
+        val testRunOverride = tempDir.resolve("custom-test-runs").toFile()
 
         val folders = resolveFileRepositoryFolders(
             adlFolderOverride = configuredRoot.absolutePath,
             widgetFolderOverride = widgetOverride.absolutePath,
             testCaseFolderOverride = testCaseOverride.absolutePath,
+            testRunFolderOverride = testRunOverride.absolutePath,
             localAdlFolder = File(tempDir.toFile(), "unused"),
         )
 
         assertEquals(configuredRoot, folders.adlFolder)
         assertEquals(widgetOverride, folders.widgetFolder)
         assertEquals(testCaseOverride, folders.testCaseFolder)
+        assertEquals(testRunOverride, folders.testRunFolder)
     }
 
     @Test
@@ -72,11 +79,13 @@ class AdlServerFileRepositoryFoldersTest {
             adlFolderOverride = null,
             widgetFolderOverride = null,
             testCaseFolderOverride = null,
+            testRunFolderOverride = null,
             localAdlFolder = File(tempDir.toFile(), "missing-adls"),
         )
 
         assertNull(folders.adlFolder)
         assertNull(folders.widgetFolder)
         assertNull(folders.testCaseFolder)
+        assertNull(folders.testRunFolder)
     }
 }
