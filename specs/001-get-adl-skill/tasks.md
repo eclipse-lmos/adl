@@ -28,7 +28,7 @@
 - [ ] T006 [P] Add GraphQL request and response DTOs in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlSearchModels.kt`
 - [ ] T007 Add the shared outbound GraphQL client in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlGraphQlClient.kt`
 - [ ] T008 Add the shared lookup outcome and result-mapping service in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlLookupService.kt`
-- [ ] T009 [P] Add shared GraphQL fixtures in `adl-mcp-server/src/test/resources/get_adl_skill/search-by-text-success.json`, `adl-mcp-server/src/test/resources/get_adl_skill/search-by-text-empty.json`, `adl-mcp-server/src/test/resources/get_adl_skill/search-by-text-errors.json`, and `adl-mcp-server/src/test/resources/get_adl_skill/search-by-text-malformed.json`
+- [ ] T009 [P] Add shared fixture-loading support in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/tools/adlskill/AdlGraphQlFixtureSupport.kt` for reading story-owned fixture files from `adl-mcp-server/src/test/resources/get_adl_skill/`
 
 **Checkpoint**: Foundation ready. User stories can now be implemented and tested independently.
 
@@ -86,14 +86,14 @@
 ### Tests for User Story 3
 
 - [ ] T021 [P] [US3] Add GraphQL-error and malformed-payload fixtures in `adl-mcp-server/src/test/resources/get_adl_skill/search-by-text-errors.json` and `adl-mcp-server/src/test/resources/get_adl_skill/search-by-text-malformed.json`
-- [ ] T022 [P] [US3] Add validation and upstream failure unit coverage in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/tools/adlskill/GetAdlSkillFailureTest.kt`
+- [ ] T022 [P] [US3] Add validation and upstream failure unit coverage in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/tools/adlskill/GetAdlSkillFailureTest.kt`, including blank input, unsupported endpoint override input, GraphQL errors, malformed payload handling, and assertions that tool errors do not expose stack traces, credentials, or internal connection details
 - [ ] T023 [P] [US3] Add timeout and unreachable-endpoint integration coverage in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/tools/adlskill/GetAdlSkillDependencyFailureIntegrationTest.kt`
 
 ### Implementation for User Story 3
 
 - [ ] T024 [US3] Implement GraphQL envelope error detection and malformed-payload rejection in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlGraphQlClient.kt`
-- [ ] T025 [US3] Implement blank-input and missing-endpoint validation errors in `adl-mcp-server/src/main/kotlin/tools/adlskill/GetAdlSkillTool.kt` and `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlServerConfig.kt`
-- [ ] T026 [US3] Implement timeout and dependency error translation in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlLookupService.kt`
+- [ ] T025 [US3] Implement blank-input, unsupported endpoint-override, and missing-endpoint validation errors in `adl-mcp-server/src/main/kotlin/tools/adlskill/GetAdlSkillTool.kt` and `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlServerConfig.kt`
+- [ ] T026 [US3] Implement timeout, GraphQL, malformed-payload, and dependency error translation with sanitized user-facing messages in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlLookupService.kt`
 
 **Checkpoint**: All specified failure conditions should now be enforced and independently testable.
 
@@ -105,7 +105,7 @@
 
 - [ ] T027 [P] Reconcile implementation details with `specs/001-get-adl-skill/contracts/get_adl_skill.md` and `specs/001-get-adl-skill/quickstart.md`
 - [ ] T028 Add MCP server startup regression coverage in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/McpServerStartupTest.kt`
-- [ ] T029 Run feature verification against `adl-mcp-server/build.gradle.kts` targets and record validation notes in `specs/001-get-adl-skill/quickstart.md`
+- [ ] T029 Run feature verification against `adl-mcp-server/build.gradle.kts` targets, record latency validation for the 2-second and 95 percent success-path target in a controlled test setup, and capture the results in `specs/001-get-adl-skill/quickstart.md`
 
 ---
 
@@ -132,7 +132,7 @@
 
 ### Parallel Opportunities
 
-- `T003`, `T004`, `T005`, `T006`, and `T009` can run in parallel after `T002`.
+- `T003`, `T004`, `T005`, `T006`, and `T009` can run in parallel after `T002`, with `T009` limited to shared fixture-loading support rather than story-owned fixture creation.
 - In User Story 1, `T010`, `T011`, `T012`, and `T013` can run in parallel.
 - In User Story 2, `T017` and `T018` can run in parallel.
 - In User Story 3, `T021`, `T022`, and `T023` can run in parallel.
