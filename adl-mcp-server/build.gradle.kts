@@ -5,6 +5,10 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
+plugins {
+    application
+}
+
 dependencies {
     val arcVersion = "0.217.0-M2"
     val graphqlKotlinVersion = "9.0.0"
@@ -39,6 +43,10 @@ tasks.withType<KotlinJvmCompile>().configureEach {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_21)
     }
+}
+
+application {
+    mainClass = "org.eclipse.lmos.adl.mcp.McpServerKt"
 }
 
 tasks.test {

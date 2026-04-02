@@ -34,7 +34,9 @@ Verify the `get_adl_skill` feature in `adl-mcp-server` against the approved spec
    - Verified by the `GetAdlSkillSuccessIntegrationTest`, `GetAdlSkillNoMatchTest`, and `GetAdlSkillDependencyFailureIntegrationTest` suite
 3. Validate the success-path latency target in a controlled fixture-backed setup.
    - Verified with `./gradlew :adl-mcp-server:test --tests "org.eclipse.lmos.adl.mcp.tools.adlskill.GetAdlSkillSuccessIntegrationTest.meets the success-path p95 latency target in a controlled fixture setup" --info --console=plain`
-4. Start the MCP server in the intended transport mode and invoke `get_adl_skill` manually with a representative query.
+4. Build the packaged distribution and verify the generated launcher uses the current runtime classpath.
+   - Verified with `./gradlew :adl-mcp-server:installDist --console=plain`
+5. Start the packaged MCP server in the intended transport mode and invoke `get_adl_skill` manually with a representative query.
 
 ## Expected Outcomes
 
@@ -47,3 +49,5 @@ Verify the `get_adl_skill` feature in `adl-mcp-server` against the approved spec
 1. `./gradlew :adl-mcp-server:test --console=plain` passed successfully for the module.
 2. The fixture-backed success-path latency validation measured a p95 of 6 ms over 20 requests, which is within the 2,000 ms target.
 3. MCP startup regression coverage confirms that `McpServer.configureServer()` registers `get_adl_skill` alongside the existing prompts.
+4. `./gradlew :adl-mcp-server:installDist --console=plain` now produces a working packaged launcher under `adl-mcp-server/build/install/adl-mcp-server/bin/adl-mcp-server`.
+5. A manual SSE smoke run against the packaged launcher completed successfully and returned the expected top-match content for `get_adl_skill`.
