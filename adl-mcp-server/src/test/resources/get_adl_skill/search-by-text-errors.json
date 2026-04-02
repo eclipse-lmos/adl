@@ -1,0 +1,17 @@
+{
+  "data": {
+    "searchByText": [
+      {
+        "useCaseId": "auth-001",
+        "content": "# Authentication ADL\n\nUse token-based authentication for service access.",
+        "maxScore": 0.98,
+        "matchedExamples": []
+      }
+    ]
+  },
+  "errors": [
+    {
+      "message": "upstream search failed"
+    }
+  ]
+}

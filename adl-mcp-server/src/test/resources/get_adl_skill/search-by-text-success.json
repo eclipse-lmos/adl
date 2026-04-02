@@ -1,0 +1,23 @@
+{
+  "data": {
+    "searchByText": [
+      {
+        "useCaseId": "auth-001",
+        "content": "# Authentication ADL\n\nUse token-based authentication for service access.",
+        "maxScore": 0.98,
+        "matchedExamples": [
+          {
+            "score": 0.98,
+            "example": "How to implement auth?"
+          }
+        ]
+      },
+      {
+        "useCaseId": "auth-002",
+        "content": "# Lower Ranked ADL\n\nFallback content.",
+        "maxScore": 0.52,
+        "matchedExamples": []
+      }
+    ]
+  }
+}

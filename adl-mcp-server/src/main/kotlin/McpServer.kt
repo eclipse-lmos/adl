@@ -23,6 +23,7 @@ import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 import org.eclipse.lmos.adl.mcp.prompts.SystemPrompt
+import org.eclipse.lmos.adl.mcp.tools.adlskill.GetAdlSkillTool
 
 private const val USE_CASE_PARAM = "useCase"
 
@@ -41,9 +42,15 @@ class McpServer {
             ),
         )
 
+        registerTools(server)
         server.addPrompts(createSystemPrompts())
 
         return server
+    }
+
+    private fun registerTools(server: Server) {
+        val getAdlSkillTool = GetAdlSkillTool()
+        server.addTool(getAdlSkillTool.toolDefinition(), getAdlSkillTool::handle)
     }
 
     private fun createSystemPrompts(): List<RegisteredPrompt> {

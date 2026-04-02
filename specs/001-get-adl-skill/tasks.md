@@ -11,9 +11,9 @@
 
 **Purpose**: Prepare the module for outbound GraphQL calls and feature-specific test assets.
 
-- [ ] T001 Validate alignment between `specs/001-get-adl-skill/spec.md`, `specs/001-get-adl-skill/plan.md`, `specs/001-get-adl-skill/research.md`, and `specs/001-get-adl-skill/contracts/get_adl_skill.md`
-- [ ] T002 Update outbound client and test dependencies in `adl-mcp-server/build.gradle.kts`
-- [ ] T003 [P] Scaffold `adl-mcp-server/src/main/kotlin/tools/adlskill/`, `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/tools/adlskill/`, and `adl-mcp-server/src/test/resources/get_adl_skill/`
+- [x] T001 Validate alignment between `specs/001-get-adl-skill/spec.md`, `specs/001-get-adl-skill/plan.md`, `specs/001-get-adl-skill/research.md`, and `specs/001-get-adl-skill/contracts/get_adl_skill.md`
+- [x] T002 Update outbound client and test dependencies in `adl-mcp-server/build.gradle.kts`
+- [x] T003 [P] Scaffold `adl-mcp-server/src/main/kotlin/tools/adlskill/`, `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/tools/adlskill/`, and `adl-mcp-server/src/test/resources/get_adl_skill/`
 
 ---
 
@@ -23,12 +23,12 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T004 [P] Add strict call-tool argument validation helpers in `adl-mcp-server/src/main/kotlin/Util.kt`
-- [ ] T005 [P] Add runtime endpoint and timeout configuration in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlServerConfig.kt`
-- [ ] T006 [P] Add GraphQL request and response DTOs in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlSearchModels.kt`
-- [ ] T007 Add the shared outbound GraphQL client in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlGraphQlClient.kt`
-- [ ] T008 Add the shared lookup outcome and result-mapping service in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlLookupService.kt`
-- [ ] T009 [P] Add shared fixture-loading support in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/tools/adlskill/AdlGraphQlFixtureSupport.kt` for reading story-owned fixture files from `adl-mcp-server/src/test/resources/get_adl_skill/`
+- [x] T004 [P] Add strict call-tool argument validation helpers in `adl-mcp-server/src/main/kotlin/Util.kt`
+- [x] T005 [P] Add runtime endpoint and timeout configuration in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlServerConfig.kt`
+- [x] T006 [P] Add GraphQL request and response DTOs in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlSearchModels.kt`
+- [x] T007 Add the shared outbound GraphQL client in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlGraphQlClient.kt`
+- [x] T008 Add the shared lookup outcome and result-mapping service in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlLookupService.kt`
+- [x] T009 [P] Add shared fixture-loading support in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/tools/adlskill/AdlGraphQlFixtureSupport.kt` for reading story-owned fixture files from `adl-mcp-server/src/test/resources/get_adl_skill/`
 
 **Checkpoint**: Foundation ready. User stories can now be implemented and tested independently.
 
@@ -42,16 +42,16 @@
 
 ### Tests for User Story 1
 
-- [ ] T010 [P] [US1] Add top-match contract validation fixtures in `adl-mcp-server/src/test/resources/get_adl_skill/search-by-text-success.json`
-- [ ] T011 [P] [US1] Add successful lookup integration coverage in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/tools/adlskill/GetAdlSkillSuccessIntegrationTest.kt`
-- [ ] T012 [P] [US1] Add successful result-mapping unit coverage in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/tools/adlskill/GetAdlSkillSuccessTest.kt`
+- [x] T010 [P] [US1] Add top-match contract validation fixtures in `adl-mcp-server/src/test/resources/get_adl_skill/search-by-text-success.json`
+- [x] T011 [P] [US1] Add successful lookup integration coverage in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/tools/adlskill/GetAdlSkillSuccessIntegrationTest.kt`
+- [x] T012 [P] [US1] Add successful result-mapping unit coverage in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/tools/adlskill/GetAdlSkillSuccessTest.kt`
 
 ### Implementation for User Story 1
 
-- [ ] T013 [P] [US1] Add the MCP tool definition and request parsing in `adl-mcp-server/src/main/kotlin/tools/adlskill/GetAdlSkillTool.kt`
-- [ ] T014 [US1] Implement the top-match lookup flow in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlLookupService.kt`
-- [ ] T015 [US1] Register `get_adl_skill` in `adl-mcp-server/src/main/kotlin/McpServer.kt`
-- [ ] T016 [US1] Format top-match MCP text responses in `adl-mcp-server/src/main/kotlin/tools/adlskill/GetAdlSkillTool.kt`
+- [x] T013 [P] [US1] Add the MCP tool definition and request parsing in `adl-mcp-server/src/main/kotlin/tools/adlskill/GetAdlSkillTool.kt`
+- [x] T014 [US1] Implement the top-match lookup flow in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlLookupService.kt`
+- [x] T015 [US1] Register `get_adl_skill` in `adl-mcp-server/src/main/kotlin/McpServer.kt`
+- [x] T016 [US1] Format top-match MCP text responses in `adl-mcp-server/src/main/kotlin/tools/adlskill/GetAdlSkillTool.kt`
 
 **Checkpoint**: User Story 1 should return the most relevant ADL content end-to-end and be testable on its own.
 
@@ -65,13 +65,13 @@
 
 ### Tests for User Story 2
 
-- [ ] T017 [P] [US2] Add no-match contract fixtures in `adl-mcp-server/src/test/resources/get_adl_skill/search-by-text-empty.json`
-- [ ] T018 [P] [US2] Add no-match unit and integration coverage in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/tools/adlskill/GetAdlSkillNoMatchTest.kt`
+- [x] T017 [P] [US2] Add no-match contract fixtures in `adl-mcp-server/src/test/resources/get_adl_skill/search-by-text-empty.json`
+- [x] T018 [P] [US2] Add no-match unit and integration coverage in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/tools/adlskill/GetAdlSkillNoMatchTest.kt`
 
 ### Implementation for User Story 2
 
-- [ ] T019 [US2] Implement empty-result handling in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlLookupService.kt`
-- [ ] T020 [US2] Format the no-result MCP message in `adl-mcp-server/src/main/kotlin/tools/adlskill/GetAdlSkillTool.kt`
+- [x] T019 [US2] Implement empty-result handling in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlLookupService.kt`
+- [x] T020 [US2] Format the no-result MCP message in `adl-mcp-server/src/main/kotlin/tools/adlskill/GetAdlSkillTool.kt`
 
 **Checkpoint**: User Story 2 should convert an empty `searchByText` result into a successful, user-readable no-result response without depending on later stories.
 
@@ -85,15 +85,15 @@
 
 ### Tests for User Story 3
 
-- [ ] T021 [P] [US3] Add GraphQL-error and malformed-payload fixtures in `adl-mcp-server/src/test/resources/get_adl_skill/search-by-text-errors.json` and `adl-mcp-server/src/test/resources/get_adl_skill/search-by-text-malformed.json`
-- [ ] T022 [P] [US3] Add validation and upstream failure unit coverage in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/tools/adlskill/GetAdlSkillFailureTest.kt`, including blank input, unsupported endpoint override input, GraphQL errors, malformed payload handling, and assertions that tool errors do not expose stack traces, credentials, or internal connection details
-- [ ] T023 [P] [US3] Add timeout and unreachable-endpoint integration coverage in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/tools/adlskill/GetAdlSkillDependencyFailureIntegrationTest.kt`
+- [x] T021 [P] [US3] Add GraphQL-error and malformed-payload fixtures in `adl-mcp-server/src/test/resources/get_adl_skill/search-by-text-errors.json` and `adl-mcp-server/src/test/resources/get_adl_skill/search-by-text-malformed.json`
+- [x] T022 [P] [US3] Add validation and upstream failure unit coverage in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/tools/adlskill/GetAdlSkillFailureTest.kt`, including blank input, unsupported endpoint override input, GraphQL errors, malformed payload handling, and assertions that tool errors do not expose stack traces, credentials, or internal connection details
+- [x] T023 [P] [US3] Add timeout and unreachable-endpoint integration coverage in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/tools/adlskill/GetAdlSkillDependencyFailureIntegrationTest.kt`
 
 ### Implementation for User Story 3
 
-- [ ] T024 [US3] Implement GraphQL envelope error detection and malformed-payload rejection in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlGraphQlClient.kt`
-- [ ] T025 [US3] Implement blank-input, unsupported endpoint-override, and missing-endpoint validation errors in `adl-mcp-server/src/main/kotlin/tools/adlskill/GetAdlSkillTool.kt` and `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlServerConfig.kt`
-- [ ] T026 [US3] Implement timeout, GraphQL, malformed-payload, and dependency error translation with sanitized user-facing messages in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlLookupService.kt`
+- [x] T024 [US3] Implement GraphQL envelope error detection and malformed-payload rejection in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlGraphQlClient.kt`
+- [x] T025 [US3] Implement blank-input, unsupported endpoint-override, and missing-endpoint validation errors in `adl-mcp-server/src/main/kotlin/tools/adlskill/GetAdlSkillTool.kt` and `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlServerConfig.kt`
+- [x] T026 [US3] Implement timeout, GraphQL, malformed-payload, and dependency error translation with sanitized user-facing messages in `adl-mcp-server/src/main/kotlin/tools/adlskill/AdlLookupService.kt`
 
 **Checkpoint**: All specified failure conditions should now be enforced and independently testable.
 
@@ -103,9 +103,9 @@
 
 **Purpose**: Reconcile artifacts, run end-to-end verification, and close the feature cleanly.
 
-- [ ] T027 [P] Reconcile implementation details with `specs/001-get-adl-skill/contracts/get_adl_skill.md` and `specs/001-get-adl-skill/quickstart.md`
-- [ ] T028 Add MCP server startup regression coverage in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/McpServerStartupTest.kt`
-- [ ] T029 Run feature verification against `adl-mcp-server/build.gradle.kts` targets, record latency validation for the 2-second and 95 percent success-path target in a controlled test setup, and capture the results in `specs/001-get-adl-skill/quickstart.md`
+- [x] T027 [P] Reconcile implementation details with `specs/001-get-adl-skill/contracts/get_adl_skill.md` and `specs/001-get-adl-skill/quickstart.md`
+- [x] T028 Add MCP server startup regression coverage in `adl-mcp-server/src/test/java/org/eclipse/lmos/adl/mcp/McpServerStartupTest.kt`
+- [x] T029 Run feature verification against `adl-mcp-server/build.gradle.kts` targets, record latency validation for the 2-second and 95 percent success-path target in a controlled test setup, and capture the results in `specs/001-get-adl-skill/quickstart.md`
 
 ---
 

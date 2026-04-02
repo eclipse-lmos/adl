@@ -23,6 +23,7 @@ Verify the `get_adl_skill` feature in `adl-mcp-server` against the approved spec
 ## Verification Steps
 
 1. Run the module test suite and confirm unit tests cover input validation and result mapping.
+   - Verified with `./gradlew :adl-mcp-server:test --console=plain`
 2. Run the mocked HTTP integration-style tests and confirm coverage for:
    - successful top-match response
    - zero-match response
@@ -30,10 +31,19 @@ Verify the `get_adl_skill` feature in `adl-mcp-server` against the approved spec
    - timeout or unreachable endpoint
    - GraphQL `errors`
    - malformed payload or blank top-match `content`
-3. Start the MCP server in the intended transport mode and invoke `get_adl_skill` manually with a representative query.
+   - Verified by the `GetAdlSkillSuccessIntegrationTest`, `GetAdlSkillNoMatchTest`, and `GetAdlSkillDependencyFailureIntegrationTest` suite
+3. Validate the success-path latency target in a controlled fixture-backed setup.
+   - Verified with `./gradlew :adl-mcp-server:test --tests "org.eclipse.lmos.adl.mcp.tools.adlskill.GetAdlSkillSuccessIntegrationTest.meets the success-path p95 latency target in a controlled fixture setup" --info --console=plain`
+4. Start the MCP server in the intended transport mode and invoke `get_adl_skill` manually with a representative query.
 
 ## Expected Outcomes
 
 1. Valid query with at least one match returns one MCP text content item containing the top ADL content.
 2. Valid query with no matches returns one MCP text content item containing the no-result message.
 3. Invalid input or dependency failures return tool errors rather than success content.
+
+## Verification Results
+
+1. `./gradlew :adl-mcp-server:test --console=plain` passed successfully for the module.
+2. The fixture-backed success-path latency validation measured a p95 of 6 ms over 20 requests, which is within the 2,000 ms target.
+3. MCP startup regression coverage confirms that `McpServer.configureServer()` registers `get_adl_skill` alongside the existing prompts.
