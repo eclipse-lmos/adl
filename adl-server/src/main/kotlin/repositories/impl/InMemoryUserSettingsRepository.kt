@@ -4,20 +4,26 @@
 
 package org.eclipse.lmos.adl.server.repositories.impl
 
+import org.eclipse.lmos.adl.server.currentOwner
 import org.eclipse.lmos.adl.server.models.UserSettings
 import org.eclipse.lmos.adl.server.repositories.UserSettingsRepository
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.ConcurrentHashMap
 
 class InMemoryUserSettingsRepository : UserSettingsRepository {
-    private val storage = AtomicReference<UserSettings?>()
+    private val storage = ConcurrentHashMap<String, UserSettings>()
 
     override suspend fun save(settings: UserSettings): UserSettings {
-        storage.set(settings)
-        return settings
+        val scopedSettings = settings.copy(owner = currentOwner())
+        storage[scopedSettings.owner] = scopedSettings
+        return scopedSettings
     }
 
     override suspend fun get(): UserSettings? {
-        return storage.get()
+        return storage[currentOwner()]
+    }
+
+    override suspend fun delete(): Boolean {
+        return storage.remove(currentOwner()) != null
     }
 }
 

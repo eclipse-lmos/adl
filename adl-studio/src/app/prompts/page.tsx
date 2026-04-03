@@ -4,19 +4,18 @@ import { useState, useEffect, Suspense, useRef, useCallback, useMemo } from 'rea
 import Link from 'next/link';
 import { useQuery, useMutation } from 'urql';
 import { useSearchParams, useRouter } from 'next/navigation';
-import type { TestCase, PerformanceData, Message, UseCasePrompt as PromptType, ChatHistoryItem } from '@/lib/data';
-import { Loader2, Zap, ArrowLeft, BookText, MessageSquare, FileText, Info, User, Bot, Pencil, Plus, History } from 'lucide-react';
+import type { TestCase, Message, ConversationTurn, UseCasePrompt as PromptType, ChatHistoryItem, TestExecutionResult, TestRunResult } from '@/lib/data';
+import { Loader2, ArrowLeft, BookText, MessageSquare, Pencil, Plus, History } from 'lucide-react';
 
 import AppHeader from '@/components/header';
 import PromptEditor from '@/components/prompt-editor';
 import TestCases from '@/components/test-cases';
 import PerformanceCharts from '@/components/performance-charts';
+import TestRunHistory from '@/components/test-run-history';
 import AiOptimizer from '@/components/ai-optimizer';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -27,8 +26,8 @@ import ChatPlayground from '@/components/chat-playground';
 import ChatHistory from '@/components/chat-history';
 import VersionHistory from '@/components/version-history';
 import type { VersionEntry } from '@/components/version-history';
-import { TestsQuery, SearchByIdQuery, GetMcpToolsQuery, ListWidgetsQuery, TagsQuery } from '@/lib/graphql/queries';
-import { NewTestsMutation, StoreADLMutation, ExecuteTestsMutation, DeleteTestCaseMutation, UpdateTestCaseMutation, ExamplesMutation, AddTestCaseMutation, UpdateTagsMutation, UpdateOutputMutation } from '@/lib/graphql/mutations';
+import { TestsQuery, SearchByIdQuery, GetMcpToolsQuery, ListWidgetsQuery, TagsQuery, TestRunsQuery, TestRunQuery } from '@/lib/graphql/queries';
+import { NewTestsMutation, StoreADLMutation, ExecuteTestsMutation, DeleteTestCaseMutation, DeleteTestRunMutation, UpdateTestCaseMutation, ExamplesMutation, AddTestCaseMutation, UpdateTagsMutation, UpdateOutputMutation } from '@/lib/graphql/mutations';
 import TagManager from '@/components/tag-manager';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -61,6 +60,14 @@ const getNewUseCasePromptTemplate = (id?: string | null): PromptType => {
   };
 };
 
+const normalizeTestCaseConversation = (testCase: TestCase): ConversationTurn[] => {
+  if (testCase.expectedConversation) {
+    return testCase.expectedConversation;
+  }
+
+  return (testCase.messages || []).map(({ role, content }) => ({ role, content }));
+};
+
 function PromptEditorPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -68,7 +75,7 @@ function PromptEditorPageContent() {
   const newIdFromUrl = searchParams.get('new_id');
   const loadedPromptIdRef = useRef<string | null>(null);
   
-  const [promptResult, reexecutePromptQuery] = useQuery({
+  const [promptResult] = useQuery({
     query: SearchByIdQuery,
     variables: { id: useCaseIdFromUrl },
     pause: !useCaseIdFromUrl,
@@ -94,7 +101,9 @@ function PromptEditorPageContent() {
   const [performanceReasons, setPerformanceReasons] = useState<string[] | null>(null);
   const [performanceMissingRequirements, setPerformanceMissingRequirements] = useState<string[] | null>(null);
   const [performanceViolations, setPerformanceViolations] = useState<string[] | null>(null);
-  const [testResults, setTestResults] = useState<any[] | null>(null);
+  const [testResults, setTestResults] = useState<TestExecutionResult[] | null>(null);
+  const [testRuns, setTestRuns] = useState<TestRunResult[]>([]);
+  const [selectedTestRunId, setSelectedTestRunId] = useState<string | null>(null);
   const [utterances, setUtterances] = useState<string[]>([]);
   const [originalUtterances, setOriginalUtterances] = useState<string[]>([]);
   const [isTesting, setIsTesting] = useState(false);
@@ -115,6 +124,8 @@ function PromptEditorPageContent() {
   const [isSavingTestCase, setIsSavingTestCase] = useState(false);
   const [showDeleteTestCaseDialog, setShowDeleteTestCaseDialog] = useState(false);
   const [testCaseToDelete, setTestCaseToDelete] = useState<{id: string; name: string} | null>(null);
+  const [showDeleteTestRunDialog, setShowDeleteTestRunDialog] = useState(false);
+  const [testRunToDelete, setTestRunToDelete] = useState<TestRunResult | null>(null);
   const [isGeneratingUtterances, setIsGeneratingUtterances] = useState(false);
   const [tools, setTools] = useState<any[]>([]);
   const [selectedWidget, setSelectedWidget] = useState<string | null>(null);
@@ -126,12 +137,26 @@ function PromptEditorPageContent() {
     pause: !useCaseId,
   });
   const { data: testCasesData, fetching: testCasesFetching, error: testCasesError } = testCasesResult;
+  const [testRunsResult, reexecuteTestRunsQuery] = useQuery({
+    query: TestRunsQuery,
+    variables: { adlId: useCaseId, limit: 20 },
+    pause: !useCaseId,
+    requestPolicy: 'cache-and-network',
+  });
+  const { data: testRunsData, fetching: testRunsFetching, error: testRunsError } = testRunsResult;
+  const [selectedTestRunResult] = useQuery({
+    query: TestRunQuery,
+    variables: { id: selectedTestRunId },
+    pause: !selectedTestRunId,
+    requestPolicy: 'cache-and-network',
+  });
 
   const [_createTestsResult, executeNewTestsMutation] = useMutation(NewTestsMutation);
   const [_storeResult, executeStoreMutation] = useMutation(StoreADLMutation);
   const [_updateTagsResult, executeUpdateTags] = useMutation(UpdateTagsMutation);
   const [_executeTestsResult, executeTestsMutation] = useMutation(ExecuteTestsMutation);
   const [_deleteTestCaseResult, executeDeleteTestCase] = useMutation(DeleteTestCaseMutation);
+  const [_deleteTestRunResult, executeDeleteTestRun] = useMutation(DeleteTestRunMutation);
   const [_updateTestCaseResult, executeUpdateTestCase] = useMutation(UpdateTestCaseMutation);
   const [_getExamplesResult, executeGetExamples] = useMutation(ExamplesMutation);
   const [_addTestCaseResult, executeAddTestCase] = useMutation(AddTestCaseMutation);
@@ -145,12 +170,21 @@ function PromptEditorPageContent() {
   }, [toolsResult.data]);
 
   const [widgetsResult, reexecuteWidgetsQuery] = useQuery({ query: ListWidgetsQuery, requestPolicy: 'cache-and-network' });
-  const widgets = useMemo(() => widgetsResult.data?.widgets || [], [widgetsResult.data]);
+  const widgets = useMemo(() => (widgetsResult.data?.widgets || []) as Array<{ id: string; name: string }>, [widgetsResult.data]);
 
   const isPromptContentDirty = prompt !== originalPrompt;
   const areUtterancesDirty = JSON.stringify(utterances) !== JSON.stringify(originalUtterances);
   const areTagsDirty = JSON.stringify(tags) !== JSON.stringify(originalTags);
   const isDirty = isPromptContentDirty || areUtterancesDirty;
+
+  const applyTestRun = useCallback((run: TestRunResult | null) => {
+    setPerformanceScore(run?.overallScore ?? null);
+    setTestResults(run?.results ?? null);
+    setPerformanceVerdict(null);
+    setPerformanceReasons(null);
+    setPerformanceMissingRequirements(null);
+    setPerformanceViolations(null);
+  }, []);
   
   useEffect(() => {
     if (useCaseIdFromUrl) {
@@ -181,8 +215,11 @@ function PromptEditorPageContent() {
         setPerformanceMissingRequirements(null);
         setPerformanceViolations(null);
         setTestResults(null);
+        setTestRuns([]);
+        setSelectedTestRunId(null);
         setTestCases([]);
         reexecuteTestCasesQuery({ requestPolicy: 'network-only' });
+        reexecuteTestRunsQuery({ requestPolicy: 'network-only' });
         loadedPromptIdRef.current = useCaseIdFromUrl;
       }
     } 
@@ -204,10 +241,12 @@ function PromptEditorPageContent() {
       setPerformanceMissingRequirements(null);
       setPerformanceViolations(null);
       setTestResults(null);
+      setTestRuns([]);
+      setSelectedTestRunId(null);
       setTestCases([]);
       loadedPromptIdRef.current = null;
     }
-  }, [useCaseIdFromUrl, newIdFromUrl, promptData, promptError, reexecuteTestCasesQuery, toast]);
+  }, [useCaseIdFromUrl, newIdFromUrl, promptData, promptError, reexecuteTestCasesQuery, reexecuteTestRunsQuery, toast]);
 
   const handlePromptSave = useCallback(() => {
     if (isSaving) return;
@@ -312,6 +351,52 @@ function PromptEditorPageContent() {
     }
   }, [testCasesData, testCasesFetching, testCasesError, toast]);
 
+  useEffect(() => {
+    if (testRunsFetching) return;
+    if (testRunsError) {
+      toast({
+        variant: 'destructive',
+        title: 'Error loading test runs',
+        description: `Could not fetch test runs: ${testRunsError.message}.`,
+      });
+      setTestRuns([]);
+      return;
+    }
+
+    if (testRunsData?.testRuns) {
+      const loadedRuns = testRunsData.testRuns as TestRunResult[];
+      setTestRuns(loadedRuns);
+
+      if (loadedRuns.length === 0) {
+        setSelectedTestRunId(null);
+        applyTestRun(null);
+        return;
+      }
+
+      setSelectedTestRunId((currentId) => {
+        if (currentId && loadedRuns.some((run) => run.id === currentId)) {
+          return currentId;
+        }
+        return loadedRuns[0].id;
+      });
+    }
+  }, [applyTestRun, testRunsData, testRunsError, testRunsFetching, toast]);
+
+  useEffect(() => {
+    if (selectedTestRunResult.error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error loading test run details',
+        description: selectedTestRunResult.error.message,
+      });
+      return;
+    }
+
+    if (selectedTestRunResult.data?.testRun) {
+      applyTestRun(selectedTestRunResult.data.testRun as TestRunResult);
+    }
+  }, [applyTestRun, selectedTestRunResult.data, selectedTestRunResult.error, toast]);
+
   const handleBlurSave = useCallback(() => {
     if (isPromptContentDirty) {
       handlePromptSave();
@@ -355,22 +440,18 @@ function PromptEditorPageContent() {
           description: error.message,
         });
       } else if (data?.executeTests) {
-        const { overallScore, results } = data.executeTests;
-        setPerformanceScore(overallScore ?? null);
-        setTestResults(results ?? []);
-
-        setPerformanceVerdict(null);
-        setPerformanceReasons(null);
-        setPerformanceMissingRequirements(null);
-        setPerformanceViolations(null);
+        const run = data.executeTests as TestRunResult;
+        applyTestRun(run);
+        setSelectedTestRunId(run.id);
+        setTestRuns((prev) => [run, ...prev.filter((existingRun) => existingRun.id !== run.id)]);
 
         toast({
           title: 'Tests complete!',
-          description: `Overall score: ${(overallScore ?? 0).toFixed(2)}`,
+          description: `Overall score: ${(run.overallScore ?? 0).toFixed(2)}`,
         });
       }
     });
-  };
+  }
 
   const handleRegenerateUtterances = () => {
     if (!prompt) {
@@ -469,6 +550,39 @@ function PromptEditorPageContent() {
     setShowDeleteTestCaseDialog(false);
     setTestCaseToDelete(null);
   };
+
+  const handleDeleteTestRunClick = (run: TestRunResult) => {
+    setTestRunToDelete(run);
+    setShowDeleteTestRunDialog(true);
+  };
+
+  const confirmDeleteTestRun = async () => {
+    if (!testRunToDelete) return;
+
+    const result = await executeDeleteTestRun({ id: testRunToDelete.id });
+    if (result.error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error deleting test run',
+        description: result.error.message,
+      });
+      return;
+    }
+
+    const nextRuns = testRuns.filter((run) => run.id !== testRunToDelete.id);
+    setTestRuns(nextRuns);
+    if (selectedTestRunId === testRunToDelete.id) {
+      const nextSelectedRun = nextRuns[0] ?? null;
+      setSelectedTestRunId(nextSelectedRun?.id ?? null);
+      applyTestRun(nextSelectedRun);
+    }
+    setShowDeleteTestRunDialog(false);
+    setTestRunToDelete(null);
+    toast({
+      title: 'Test run deleted',
+      description: 'The persisted test run has been removed.',
+    });
+  };
   
   const handleToggleContract = async (testCaseId: string) => {
     const testCase = (testCases || []).find(tc => tc.id === testCaseId);
@@ -479,7 +593,7 @@ function PromptEditorPageContent() {
             description: `Could not find test case with ID: ${testCaseId}`,
         });
         return;
-    };
+    }
 
     const updatedTestCase = { ...testCase, contract: !testCase.contract };
 
@@ -585,18 +699,14 @@ function PromptEditorPageContent() {
           description: error.message,
         });
       } else if (data?.executeTests) {
-        const { overallScore, results } = data.executeTests;
-        setPerformanceScore(overallScore ?? null);
-        setTestResults(results ?? []);
-
-        setPerformanceVerdict(null);
-        setPerformanceReasons(null);
-        setPerformanceMissingRequirements(null);
-        setPerformanceViolations(null);
+        const run = data.executeTests as TestRunResult;
+        applyTestRun(run);
+        setSelectedTestRunId(run.id);
+        setTestRuns((prev) => [run, ...prev.filter((existingRun) => existingRun.id !== run.id)]);
 
         toast({
           title: 'Test complete!',
-          description: `Score for "${testCase.name}": ${((results?.[0]?.score ?? 0)).toFixed(0)}`,
+          description: `Score for "${testCase.name}": ${((run.results?.[0]?.score ?? 0)).toFixed(0)}`,
         });
       }
     });
@@ -637,6 +747,7 @@ function PromptEditorPageContent() {
     const result = await executeAddTestCase({
         input: {
             useCaseId: useCaseId,
+            adlId: useCaseId,
             name: newTestCaseData.name,
             description: newTestCaseData.description,
             expectedConversation: conversation,
@@ -779,7 +890,7 @@ function PromptEditorPageContent() {
   const handleTestCaseMessageChange = (index: number, content: string) => {
     setEditedTestCase(prev => {
         if (!prev) return null;
-        const currentConversation = (prev.expectedConversation || prev.messages || []);
+        const currentConversation = normalizeTestCaseConversation(prev);
         if (!currentConversation) return prev;
         const newMessages = [...currentConversation];
         newMessages[index] = { ...newMessages[index], content };
@@ -790,7 +901,7 @@ function PromptEditorPageContent() {
   const handleTestCaseMessageRoleChange = (index: number, role: 'user' | 'assistant') => {
       setEditedTestCase(prev => {
           if (!prev) return null;
-          const currentConversation = (prev.expectedConversation || prev.messages || []);
+          const currentConversation = normalizeTestCaseConversation(prev);
           if (!currentConversation) return prev;
           const newMessages = [...currentConversation];
           newMessages[index] = { ...newMessages[index], role };
@@ -801,7 +912,7 @@ function PromptEditorPageContent() {
   const handleRemoveTestCaseMessage = (index: number) => {
       setEditedTestCase(prev => {
           if (!prev) return null;
-          const currentConversation = (prev.expectedConversation || prev.messages || []);
+          const currentConversation = normalizeTestCaseConversation(prev);
           if (!currentConversation) return prev;
           const newMessages = currentConversation.filter((_, i) => i !== index);
           return { ...prev, expectedConversation: newMessages };
@@ -811,7 +922,7 @@ function PromptEditorPageContent() {
   const handleAddTestCaseMessage = () => {
       setEditedTestCase(prev => {
           if (!prev) return null;
-          const newMessages = [...(prev.expectedConversation || prev.messages || []), { role: 'user', content: '', format: 'text' as const }];
+          const newMessages: ConversationTurn[] = [...normalizeTestCaseConversation(prev), { role: 'user', content: '' }];
           return { ...prev, expectedConversation: newMessages };
       });
   };
@@ -880,7 +991,7 @@ function PromptEditorPageContent() {
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="none">No Widget</SelectItem>
-                    {widgets.map(widget => (
+                    {widgets.map((widget: { id: string; name: string }) => (
                         <SelectItem key={widget.id} value={widget.id}>{widget.name}</SelectItem>
                     ))}
                 </SelectContent>
@@ -950,20 +1061,31 @@ function PromptEditorPageContent() {
           </ResizablePanel>
           <ResizableHandle withHandle />
           <ResizablePanel defaultSize={33}>
-            <Card className="h-full mx-4">
-              <TestCases 
-                testCases={testCases || []}
-                isTesting={isTesting}
-                onGenerateTestCases={handleGenerateTestCases}
-                isGeneratingTests={isGeneratingTests}
-                onPlayTestCase={handlePlayTestCase}
-                onRunTests={handleRunTests}
-                useCaseId={useCaseId}
-                onTestCaseSelect={handleViewTestCase}
-                onDeleteTestCase={handleDeleteTestCaseClick}
-                onToggleContract={handleToggleContract}
-              />
-            </Card>
+            <div className="h-full mx-4 flex flex-col gap-4">
+              <Card className="flex-1 min-h-0">
+                <TestCases 
+                  testCases={testCases || []}
+                  isTesting={isTesting}
+                  onGenerateTestCases={handleGenerateTestCases}
+                  isGeneratingTests={isGeneratingTests}
+                  onPlayTestCase={handlePlayTestCase}
+                  onRunTests={handleRunTests}
+                  useCaseId={useCaseId}
+                  onTestCaseSelect={handleViewTestCase}
+                  onDeleteTestCase={handleDeleteTestCaseClick}
+                  onToggleContract={handleToggleContract}
+                />
+              </Card>
+              <Card className="flex-1 min-h-0">
+                <TestRunHistory
+                  runs={testRuns}
+                  selectedRunId={selectedTestRunId}
+                  isLoading={testRunsFetching}
+                  onSelectRunAction={setSelectedTestRunId}
+                  onDeleteRunAction={handleDeleteTestRunClick}
+                />
+              </Card>
+            </div>
           </ResizablePanel>
           <ResizableHandle withHandle />
           <ResizablePanel defaultSize={25} className="pl-4">
@@ -979,7 +1101,7 @@ function PromptEditorPageContent() {
                   missingRequirements={performanceMissingRequirements}
                   violations={performanceViolations}
                   results={testResults}
-                  onViewTestCase={handleViewTestCase}
+                  onViewTestCaseAction={handleViewTestCase}
                   isTesting={isTesting}
                 />
               </Card>
@@ -1065,7 +1187,7 @@ function PromptEditorPageContent() {
                 <ScrollArea className="flex-1 pr-4 -mr-4">
                     <div className="space-y-6 pr-4">
                         {(editedTestCase.messages || editedTestCase.expectedConversation) && (editedTestCase.messages || editedTestCase.expectedConversation)!.length > 0 ? (
-                            (editedTestCase.messages || editedTestCase.expectedConversation)!.map((message, index) => (
+                            normalizeTestCaseConversation(editedTestCase).map((message, index) => (
                                 <ConversationMessage 
                                     key={index} 
                                     message={message} 
@@ -1140,6 +1262,25 @@ function PromptEditorPageContent() {
               <AlertDialogAction onClick={confirmDeleteTestCase}>Delete</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={showDeleteTestRunDialog} onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          setTestRunToDelete(null);
+        }
+        setShowDeleteTestRunDialog(isOpen);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete persisted test run?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the stored test run history entry from the current organization only.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteTestRun}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
       </AlertDialog>
     </div>
   );

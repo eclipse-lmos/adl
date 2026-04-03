@@ -5,6 +5,8 @@ package org.eclipse.lmos.adl.server.inbound.query
 
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Query
+import graphql.schema.DataFetchingEnvironment
+import org.eclipse.lmos.adl.server.withRequestOwner
 import org.eclipse.lmos.adl.server.repositories.AdlRepository
 import org.eclipse.lmos.adl.server.repositories.StatisticsRepository
 
@@ -14,19 +16,21 @@ class DashboardQuery(
 ) : Query {
 
     @GraphQLDescription("Returns dashboard statistics")
-    suspend fun dashboard(): DashboardStats {
-        val totalAdls = adlRepository.list().size
-        val mostUsed = statisticsRepository.getMostUsedUseCase()
-        val averageResponseTime = statisticsRepository.getAverageResponseTime()
+    suspend fun dashboard(environment: DataFetchingEnvironment? = null): DashboardStats {
+        return withRequestOwner(environment) {
+            val totalAdls = adlRepository.list().size
+            val mostUsed = statisticsRepository.getMostUsedUseCase()
+            val averageResponseTime = statisticsRepository.getAverageResponseTime()
 
-        return DashboardStats(
-            numberOfAdls = totalAdls,
-            mostUsedUseCase = mostUsed.map {
-                 val scores = statisticsRepository.getComplianceScores(it.first)
-                 UseCaseStats(it.first, it.second, scores?.first, scores?.second)
-            },
-            averageResponseTime = averageResponseTime
-        )
+            DashboardStats(
+                numberOfAdls = totalAdls,
+                mostUsedUseCase = mostUsed.map {
+                    val scores = statisticsRepository.getComplianceScores(it.first)
+                    UseCaseStats(it.first, it.second, scores?.first, scores?.second)
+                },
+                averageResponseTime = averageResponseTime
+            )
+        }
     }
 }
 

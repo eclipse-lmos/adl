@@ -8,6 +8,8 @@ import graphql.GraphqlErrorBuilder
 import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.DataFetcherExceptionHandlerParameters
 import graphql.execution.DataFetcherExceptionHandlerResult
+import org.eclipse.lmos.adl.server.OwnerAuthenticationException
+import org.eclipse.lmos.adl.server.OwnerAuthorizationException
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
 
@@ -58,6 +60,8 @@ class GlobalExceptionHandler : DataFetcherExceptionHandler {
      */
     private fun sanitizeErrorMessage(exception: Throwable): String {
         return when (exception) {
+            is OwnerAuthenticationException -> exception.message ?: "Authentication required"
+            is OwnerAuthorizationException -> exception.message ?: "Access forbidden"
             is IllegalArgumentException -> exception.message ?: "Invalid argument"
             is IllegalStateException -> exception.message ?: "Invalid state"
             is NoSuchElementException -> exception.message ?: "Resource not found"

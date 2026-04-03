@@ -39,6 +39,10 @@ export default function SettingsPanel({ isOpen, onOpenChange }: SettingsPanelPro
   const [activeTab, setActiveTab] = useState('servers');
   const [apiKey, setApiKey] = useState('');
   const [modelName, setModelName] = useState('');
+  const [modelUrl, setModelUrl] = useState('');
+  const [embeddingModel, setEmbeddingModel] = useState('');
+  const [embeddingUrl, setEmbeddingUrl] = useState('');
+  const [embeddingKey, setEmbeddingKey] = useState('');
   const { toast } = useToast();
 
   const [serverUrlsResult, reexecuteServers] = useQuery({ query: GetMcpServerUrlsQuery, pause: !isOpen });
@@ -68,8 +72,17 @@ export default function SettingsPanel({ isOpen, onOpenChange }: SettingsPanelPro
     if (userSettingsResult.data?.userSettings) {
       setApiKey(userSettingsResult.data.userSettings.apiKey || '');
       setModelName(userSettingsResult.data.userSettings.modelName || '');
+      setModelUrl(userSettingsResult.data.userSettings.modelUrl || '');
+      setEmbeddingModel(userSettingsResult.data.userSettings.embeddingModel || '');
+      setEmbeddingUrl(userSettingsResult.data.userSettings.embeddingUrl || '');
+      setEmbeddingKey(userSettingsResult.data.userSettings.embeddingKey || '');
     }
   }, [userSettingsResult.data]);
+
+  const normalizeOptional = (value: string) => {
+    const trimmedValue = value.trim();
+    return trimmedValue.length > 0 ? trimmedValue : null;
+  };
 
 
   const updateServers = useCallback((urls: string[]) => {
@@ -96,7 +109,14 @@ export default function SettingsPanel({ isOpen, onOpenChange }: SettingsPanelPro
   };
   
   const handleLlmSettingsSave = () => {
-    executeSetSettings({ apiKey, modelName }).then(result => {
+    executeSetSettings({
+      apiKey,
+      modelName,
+      modelUrl: normalizeOptional(modelUrl),
+      embeddingModel: normalizeOptional(embeddingModel),
+      embeddingUrl: normalizeOptional(embeddingUrl),
+      embeddingKey: normalizeOptional(embeddingKey),
+    }).then(result => {
         if (result.error) {
             toast({
                 title: "Error saving settings",
@@ -195,7 +215,7 @@ export default function SettingsPanel({ isOpen, onOpenChange }: SettingsPanelPro
                 <div>
                     <h3 className="text-lg font-medium">LLM Configuration</h3>
                     <p className="text-sm text-muted-foreground">
-                        Set the API Key and model for the Language Model.
+                        Set the model, endpoints, and API keys for chat and embeddings.
                     </p>
                     <div className="mt-4 space-y-4">
                         <div className="space-y-2">
@@ -215,6 +235,43 @@ export default function SettingsPanel({ isOpen, onOpenChange }: SettingsPanelPro
                                 placeholder="e.g. googleai/gemini-2.5-flash"
                                 value={modelName}
                                 onChange={(e) => setModelName(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="model-url">Model URL (Optional)</Label>
+                            <Input
+                                id="model-url"
+                                placeholder="e.g. https://api.openai.com/v1"
+                                value={modelUrl}
+                                onChange={(e) => setModelUrl(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="embedding-model">Embedding Model (Optional)</Label>
+                            <Input
+                                id="embedding-model"
+                                placeholder="e.g. text-embedding-3-small"
+                                value={embeddingModel}
+                                onChange={(e) => setEmbeddingModel(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="embedding-url">Embedding URL (Optional)</Label>
+                            <Input
+                                id="embedding-url"
+                                placeholder="e.g. https://api.openai.com/v1"
+                                value={embeddingUrl}
+                                onChange={(e) => setEmbeddingUrl(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="embedding-key">Embedding API Key (Optional)</Label>
+                            <Input
+                                id="embedding-key"
+                                type="password"
+                                placeholder="Enter your embedding API Key"
+                                value={embeddingKey}
+                                onChange={(e) => setEmbeddingKey(e.target.value)}
                             />
                         </div>
                         <div className="flex justify-end pt-2">

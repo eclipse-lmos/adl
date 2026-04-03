@@ -9,6 +9,7 @@ import dev.langchain4j.data.segment.TextSegment
 import dev.langchain4j.model.embedding.EmbeddingModel
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore
+import org.eclipse.lmos.adl.server.currentOwner
 import org.eclipse.lmos.adl.server.models.SimpleMessage
 import org.eclipse.lmos.adl.server.repositories.SearchResult
 import org.eclipse.lmos.adl.server.repositories.UseCaseEmbeddingsRepository
@@ -29,17 +30,19 @@ class InMemoryUseCaseEmbeddingsStore(
     }
 
     override suspend fun storeUtterances(id: String, examples: List<String>, tags: Set<String>): Int {
+        val owner = currentOwner()
         deleteByUseCaseId(id)
-        return storeExamples(id, "", examples, tags)
+        return storeExamples(id, "", examples, tags, owner)
     }
 
     override suspend fun storeUseCase(adl: String, examples: List<String>, tags: Set<String>): Int {
+        val owner = currentOwner()
         val parsedUseCases = adl.toUseCases()
         var count = 0
         parsedUseCases.forEach { useCase ->
             deleteByUseCaseId(useCase.id)
             val allExamples = (parseExamples(useCase.examples) + examples).distinct()
-            count += storeExamples(useCase.id, adl, allExamples, tags)
+            count += storeExamples(useCase.id, adl, allExamples, tags, owner)
         }
         return count
     }
@@ -48,10 +51,12 @@ class InMemoryUseCaseEmbeddingsStore(
         useCaseId: String,
         content: String,
         examples: List<String>,
-        tags: Set<String> = emptySet()
+        tags: Set<String> = emptySet(),
+        owner: String,
     ): Int {
         val segments = examples.map { example ->
             val metadata = mutableMapOf(
+                PAYLOAD_OWNER to owner,
                 PAYLOAD_USECASE_ID to useCaseId,
                 PAYLOAD_EXAMPLE to example,
                 PAYLOAD_CONTENT to content
@@ -68,7 +73,7 @@ class InMemoryUseCaseEmbeddingsStore(
         val embeddings = embeddingModel.embedAll(segments).content()
         val ids = store.addAll(embeddings, segments)
 
-        useCaseIdToEmbeddingIds.computeIfAbsent(useCaseId) { mutableListOf() }.addAll(ids)
+        useCaseIdToEmbeddingIds.computeIfAbsent(key(owner, useCaseId)) { mutableListOf() }.addAll(ids)
 
         return ids.size
     }
@@ -79,12 +84,14 @@ class InMemoryUseCaseEmbeddingsStore(
         scoreThreshold: Float,
         tags: Set<String>?
     ): List<SearchResult> {
+        val owner = currentOwner()
         val embedding = embeddingModel.embed(query).content()
         val request = EmbeddingSearchRequest.builder()
             .queryEmbedding(embedding)
             .maxResults(limit)
             .minScore(scoreThreshold.toDouble())
             .filter { metadata ->
+                if (metadata is Metadata && metadata.getString(PAYLOAD_OWNER) != owner) return@filter false
                 if (tags.isNullOrEmpty()) return@filter true
                 if (metadata !is Metadata) return@filter true
                 val exampleTags = metadata.getString(PAYLOAD_TAGS)?.split(",")?.map { it.trim() } ?: emptyList()
@@ -116,22 +123,28 @@ class InMemoryUseCaseEmbeddingsStore(
     }
 
     override suspend fun deleteByUseCaseId(useCaseId: String) {
-        val ids = useCaseIdToEmbeddingIds.remove(useCaseId)
+        val ids = useCaseIdToEmbeddingIds.remove(key(currentOwner(), useCaseId))
         if (!ids.isNullOrEmpty()) {
             store.removeAll(ids)
         }
     }
 
     override suspend fun clear() {
-        val allIds = useCaseIdToEmbeddingIds.values.flatten()
+        val owner = currentOwner()
+        val matchingKeys = useCaseIdToEmbeddingIds.keys.filter { it.startsWith("$owner::") }
+        val allIds = matchingKeys.flatMap { useCaseIdToEmbeddingIds[it].orEmpty() }
         if (allIds.isNotEmpty()) {
             store.removeAll(allIds)
-            useCaseIdToEmbeddingIds.clear()
+            matchingKeys.forEach { useCaseIdToEmbeddingIds.remove(it) }
         }
     }
 
     override suspend fun count(): Long {
-        return useCaseIdToEmbeddingIds.values.sumOf { it.size }.toLong()
+        val owner = currentOwner()
+        return useCaseIdToEmbeddingIds.entries
+            .filter { it.key.startsWith("$owner::") }
+            .sumOf { it.value.size }
+            .toLong()
     }
 
     override fun close() {
@@ -147,9 +160,12 @@ class InMemoryUseCaseEmbeddingsStore(
     }
 
     companion object {
+        private const val PAYLOAD_OWNER = "owner"
         private const val PAYLOAD_USECASE_ID = "usecase_id"
         private const val PAYLOAD_EXAMPLE = "example"
         private const val PAYLOAD_CONTENT = "content"
         private const val PAYLOAD_TAGS = "tags"
     }
+
+    private fun key(owner: String, useCaseId: String): String = "$owner::$useCaseId"
 }

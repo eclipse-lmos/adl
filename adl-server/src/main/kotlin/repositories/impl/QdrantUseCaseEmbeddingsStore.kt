@@ -16,6 +16,7 @@ import io.qdrant.client.grpc.Points.PointStruct
 import io.qdrant.client.grpc.Points.ScoredPoint
 import kotlinx.coroutines.guava.await
 import org.eclipse.lmos.adl.server.QdrantConfig
+import org.eclipse.lmos.adl.server.currentOwner
 import org.eclipse.lmos.adl.server.models.SimpleMessage
 import org.eclipse.lmos.adl.server.repositories.UseCaseEmbeddingsRepository
 import org.eclipse.lmos.adl.server.repositories.SearchResult
@@ -68,6 +69,7 @@ class QdrantUseCaseEmbeddingsStore(
      * @return The number of embeddings stored.
      */
     override suspend fun storeUtterances(id: String, examples: List<String>, tags: Set<String>): Int {
+        val owner = currentOwner()
         val points = mutableListOf<PointStruct>()
 
         // Delete existing embeddings for all ADL IDs that will be stored
@@ -78,7 +80,7 @@ class QdrantUseCaseEmbeddingsStore(
             val point = PointStruct.newBuilder()
                 .setId(id(UUID.randomUUID()))
                 .setVectors(vectors(embedding.toList()))
-                .putAllPayload(buildPayload(id, "", example, tags))
+                .putAllPayload(buildPayload(id, "", example, tags, owner))
                 .build()
             points.add(point)
         }
@@ -101,6 +103,7 @@ class QdrantUseCaseEmbeddingsStore(
      * @return The number of embeddings stored.
      */
     override suspend fun storeUseCase(adl: String, examples: List<String>, tags: Set<String>): Int {
+        val owner = currentOwner()
         val points = mutableListOf<PointStruct>()
         val parsedUseCases = adl.toUseCases()
 
@@ -114,7 +117,7 @@ class QdrantUseCaseEmbeddingsStore(
                 val point = PointStruct.newBuilder()
                     .setId(id(UUID.randomUUID()))
                     .setVectors(vectors(embedding.toList()))
-                    .putAllPayload(buildPayload(useCase.id, adl, example, tags))
+                    .putAllPayload(buildPayload(useCase.id, adl, example, tags, owner))
                     .build()
                 points.add(point)
             }
@@ -161,6 +164,7 @@ class QdrantUseCaseEmbeddingsStore(
         scoreThreshold: Float = 0.0f,
         tags: Set<String>? = null,
     ): List<SearchResult> {
+        val owner = currentOwner()
         return try {
             val searchRequestBuilder = io.qdrant.client.grpc.Points.SearchPoints.newBuilder()
                 .setCollectionName(config.collectionName)
@@ -169,8 +173,23 @@ class QdrantUseCaseEmbeddingsStore(
                 .setScoreThreshold(scoreThreshold)
                 .setWithPayload(io.qdrant.client.WithPayloadSelectorFactory.enable(true))
 
+            val filterBuilder = io.qdrant.client.grpc.Points.Filter.newBuilder()
+                .addMust(
+                    io.qdrant.client.grpc.Points.Condition.newBuilder()
+                        .setField(
+                            io.qdrant.client.grpc.Points.FieldCondition.newBuilder()
+                                .setKey(PAYLOAD_OWNER)
+                                .setMatch(
+                                    io.qdrant.client.grpc.Points.Match.newBuilder()
+                                        .setKeyword(owner)
+                                        .build()
+                                )
+                                .build()
+                        )
+                        .build()
+                )
+
             if (!tags.isNullOrEmpty()) {
-                 val filterBuilder = io.qdrant.client.grpc.Points.Filter.newBuilder()
                  tags.forEach { tag ->
                      filterBuilder.addMust(
                         io.qdrant.client.grpc.Points.Condition.newBuilder()
@@ -187,8 +206,8 @@ class QdrantUseCaseEmbeddingsStore(
                             .build()
                      )
                  }
-                searchRequestBuilder.setFilter(filterBuilder.build())
             }
+            searchRequestBuilder.setFilter(filterBuilder.build())
 
             val results = client.searchAsync(searchRequestBuilder.build()).await()
 
@@ -222,22 +241,11 @@ class QdrantUseCaseEmbeddingsStore(
      * @param useCaseId The ID of the UseCase to delete embeddings for.
      */
     override suspend fun deleteByUseCaseId(useCaseId: String) {
+        val owner = currentOwner()
         try {
             client.deleteAsync(
                 config.collectionName,
-                io.qdrant.client.grpc.Points.Filter.newBuilder()
-                    .addMust(
-                        io.qdrant.client.grpc.Points.Condition.newBuilder()
-                            .setField(
-                                io.qdrant.client.grpc.Points.FieldCondition.newBuilder()
-                                    .setKey(PAYLOAD_ADL_ID)
-                                    .setMatch(
-                                        io.qdrant.client.grpc.Points.Match.newBuilder()
-                                            .setKeyword(useCaseId),
-                                    ),
-                            ),
-                    )
-                    .build(),
+                buildOwnerFilter(owner, useCaseId),
             ).await()
         } catch (e: ExecutionException) {
             throw RuntimeException("Failed to delete embeddings from Qdrant", e.cause)
@@ -248,9 +256,12 @@ class QdrantUseCaseEmbeddingsStore(
      * Clears all embeddings from the collection.
      */
     override suspend fun clear() {
+        val owner = currentOwner()
         try {
-            client.deleteCollectionAsync(config.collectionName).await()
-            initialize()
+            client.deleteAsync(
+                config.collectionName,
+                buildOwnerFilter(owner),
+            ).await()
         } catch (e: ExecutionException) {
             throw RuntimeException("Failed to clear Qdrant collection", e.cause)
         }
@@ -260,8 +271,13 @@ class QdrantUseCaseEmbeddingsStore(
      * Gets the total number of embeddings stored.
      */
     override suspend fun count(): Long {
+        val owner = currentOwner()
         return try {
-            client.countAsync(config.collectionName).await()
+            client.countAsync(
+                config.collectionName,
+                buildOwnerFilter(owner),
+                true,
+            ).await()
         } catch (e: ExecutionException) {
             throw RuntimeException("Failed to count embeddings in Qdrant", e.cause)
         }
@@ -284,8 +300,10 @@ class QdrantUseCaseEmbeddingsStore(
         useCase: String,
         example: String,
         tags: Set<String> = emptySet(),
+        owner: String,
     ): Map<String, io.qdrant.client.grpc.JsonWithInt.Value> {
         return buildMap {
+            put(PAYLOAD_OWNER, value(owner))
             put(PAYLOAD_ADL_ID, value(useCaseId))
             put(PAYLOAD_EXAMPLE, value(example))
             put(PAYLOAD_CONTENT, value(useCase))
@@ -305,7 +323,45 @@ class QdrantUseCaseEmbeddingsStore(
         )
     }
 
+    private fun buildOwnerFilter(owner: String, useCaseId: String? = null): io.qdrant.client.grpc.Points.Filter {
+        val builder = io.qdrant.client.grpc.Points.Filter.newBuilder()
+            .addMust(
+                io.qdrant.client.grpc.Points.Condition.newBuilder()
+                    .setField(
+                        io.qdrant.client.grpc.Points.FieldCondition.newBuilder()
+                            .setKey(PAYLOAD_OWNER)
+                            .setMatch(
+                                io.qdrant.client.grpc.Points.Match.newBuilder()
+                                    .setKeyword(owner)
+                                    .build()
+                            )
+                            .build()
+                    )
+                    .build()
+            )
+
+        if (useCaseId != null) {
+            builder.addMust(
+                io.qdrant.client.grpc.Points.Condition.newBuilder()
+                    .setField(
+                        io.qdrant.client.grpc.Points.FieldCondition.newBuilder()
+                            .setKey(PAYLOAD_ADL_ID)
+                            .setMatch(
+                                io.qdrant.client.grpc.Points.Match.newBuilder()
+                                    .setKeyword(useCaseId)
+                                    .build()
+                            )
+                            .build()
+                    )
+                    .build()
+            )
+        }
+
+        return builder.build()
+    }
+
     companion object {
+        private const val PAYLOAD_OWNER = "owner"
         private const val PAYLOAD_ADL_ID = "adl_id"
         private const val PAYLOAD_EXAMPLE = "example"
         private const val PAYLOAD_CONTENT = "content"

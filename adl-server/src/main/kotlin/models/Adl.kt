@@ -5,6 +5,7 @@
 package org.eclipse.lmos.adl.server.model
 
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
+import org.eclipse.lmos.adl.server.DEFAULT_OWNER
 
 @GraphQLDescription("A representation of an Agent Definition Language (ADL) file.")
 data class Adl(
@@ -31,4 +32,7 @@ data class Adl(
 
     @GraphQLDescription("Version of the ADL")
     val version: String = "1.0.0",
+
+    @GraphQLDescription("Owner of the ADL")
+    val owner: String = DEFAULT_OWNER,
 )

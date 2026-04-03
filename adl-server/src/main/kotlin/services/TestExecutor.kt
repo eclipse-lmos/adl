@@ -21,7 +21,7 @@ import org.eclipse.lmos.arc.agents.dsl.extensions.OutputContext
 import org.eclipse.lmos.arc.agents.dsl.extensions.getUseCase
 import org.eclipse.lmos.arc.core.Failure
 import org.eclipse.lmos.arc.core.Success
-import org.slf4j.LoggerFactory
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -33,8 +33,6 @@ class TestExecutor(
     private val testCaseRepository: TestCaseRepository,
     private val conversationEvaluator: ConversationEvaluator,
 ) {
-
-
     suspend fun executeTests(adlId: String, testCaseId: String? = null): TestRunResult {
         val useCases = adlStorage.getAsUseCases(adlId)
         if (useCases.isEmpty()) throw IllegalArgumentException("ADL not found or empty: $adlId")
@@ -42,6 +40,9 @@ class TestExecutor(
         val testCases = if (testCaseId != null) {
             val testCase = testCaseRepository.findById(testCaseId)
                 ?: throw IllegalArgumentException("Test Case not found: $testCaseId")
+            require(testCase.adlId == null || testCase.adlId == adlId) {
+                "Test Case $testCaseId does not belong to ADL $adlId"
+            }
             listOf(testCase)
         } else {
             testCaseRepository.findByADLId(adlId)
@@ -54,19 +55,28 @@ class TestExecutor(
         val overallScore = if (results.isNotEmpty()) results.map { it.score }.average() else 0.0
 
         return TestRunResult(
+            adlId = adlId,
+            createdAt = Instant.now().toString(),
+            requestedTestCaseId = testCaseId,
             overallScore = overallScore,
             results = results,
         )
     }
 
     private suspend fun executeTestCase(testCase: TestCase, useCases: Any): TestExecutionResult {
-        val results = testCase.variants.map {
-            runSingleTestCase(it, testCase, useCases)
+        val variants = testCase.variants.ifEmpty { listOf(testCase.expectedConversation) }
+        val results = variants.mapIndexed { index, variant ->
+            runSingleTestCase(variant, testCase, useCases, index)
         }
         return results.minByOrNull { it.score } ?: results.first()
     }
 
-    private suspend fun runSingleTestCase(input: List<ConversationTurn>, testCase: TestCase, useCases: Any): TestExecutionResult {
+    private suspend fun runSingleTestCase(
+        input: List<ConversationTurn>,
+        testCase: TestCase,
+        useCases: Any,
+        variantIndex: Int,
+    ): TestExecutionResult {
         val transcript = mutableListOf<ConversationMessage>()
         val actualConversation = mutableListOf<SimpleMessage>()
         var failureReason: String? = null
@@ -116,9 +126,16 @@ class TestExecutor(
             testCaseName = testCase.name,
             status = if (finalVerdict == "fail") "FAIL" else "PASS",
             score = evalOutput.score,
+            testCase = testCase.copy(
+                expectedConversation = testCase.expectedConversation.map { it.copy() },
+                variants = testCase.variants.map { variant -> variant.map { it.copy() } },
+            ),
+            executedVariantIndex = variantIndex,
+            executedConversation = input.map { it.copy() },
             actualConversation = actualConversation.map { ConversationTurn(it.role, it.content) },
-            details = evalOutput.copy(verdict = finalVerdict, reasons = finalReasons as MutableList<String>),
-            useCases = useCasesHistory
+            details = evalOutput.copy(verdict = finalVerdict, reasons = finalReasons),
+            useCases = useCasesHistory,
+            failureReason = failureReason,
         )
     }
 }

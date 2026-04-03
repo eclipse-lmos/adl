@@ -21,9 +21,53 @@ export type TestCase = {
   name: string;
   description: string;
   useCaseId?: string;
-  expectedConversation?: Message[];
+  adlId?: string;
+  expectedConversation?: ConversationTurn[];
   messages?: Message[];
   contract?: boolean;
+};
+
+export type ConversationTurn = {
+  role: string;
+  content: string;
+};
+
+export type TestExecutionEvidence = {
+  quote: string;
+  mapsTo: string;
+};
+
+export type TestExecutionDetails = {
+  verdict: string;
+  score: number;
+  reasons: string[];
+  missingRequirements: string[];
+  violations: string[];
+  evidence: TestExecutionEvidence[];
+};
+
+export type TestExecutionResult = {
+  testCaseId: string;
+  testCaseName: string;
+  status: string;
+  score: number;
+  testCase: TestCase;
+  executedVariantIndex?: number | null;
+  executedConversation: ConversationTurn[];
+  actualConversation: ConversationTurn[];
+  useCases: string[];
+  details: TestExecutionDetails;
+  failureReason?: string | null;
+};
+
+export type TestRunResult = {
+  id: string;
+  adlId: string;
+  owner: string;
+  createdAt: string;
+  requestedTestCaseId?: string | null;
+  overallScore: number;
+  results: TestExecutionResult[];
 };
 
 export type PerformanceData = {

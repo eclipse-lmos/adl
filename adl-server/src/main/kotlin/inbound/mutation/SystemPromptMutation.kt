@@ -6,6 +6,8 @@ package org.eclipse.lmos.adl.server.inbound.mutation
 
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Mutation
+import graphql.schema.DataFetchingEnvironment
+import org.eclipse.lmos.adl.server.withRequestOwner
 import org.eclipse.lmos.adl.server.sessions.Sessions
 import org.eclipse.lmos.adl.server.templates.TemplateLoader
 import org.eclipse.lmos.adl.server.repositories.RolePromptRepository
@@ -38,35 +40,27 @@ class SystemPromptMutation(
         conditionals: List<String> = emptyList(),
         sessionId: String? = null,
         roleId: String? = null,
+        environment: DataFetchingEnvironment? = null,
     ): SystemPromptResult {
-        // Parse ADL to use cases
-        val useCases: List<UseCase> = adl.toUseCases()
+        return withRequestOwner(environment) {
+            val useCases: List<UseCase> = adl.toUseCases()
+            val compiledUseCases = useCases.formatToString(conditions = conditionals.toSet())
+            val currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            val rolePrompt = roleId?.let { rolePromptRepository.findById(it) }
+            val systemPrompt = templateLoader.render(
+                time = currentTime,
+                useCases = compiledUseCases,
+                role = rolePrompt?.role,
+                tone = rolePrompt?.tone,
+            )
+            val session = sessionId?.let { id -> sessions.incrementTurn(id) }
 
-        // Format use cases to string with conditionals
-        val compiledUseCases = useCases.formatToString(conditions = conditionals.toSet())
-
-        // Get current time
-        val currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
-
-        // Fetch role prompt content if roleId is provided
-        val rolePrompt = roleId?.let { rolePromptRepository.findById(it) }
-
-        // Build the system prompt using template loader
-        val systemPrompt = templateLoader.render(
-            time = currentTime,
-            useCases = compiledUseCases,
-            role = rolePrompt?.role,
-            tone = rolePrompt?.tone,
-        )
-
-        // Handle session if sessionId is provided
-        val session = sessionId?.let { id -> sessions.incrementTurn(id) }
-
-        return SystemPromptResult(
-            systemPrompt = systemPrompt,
-            useCaseCount = useCases.size,
-            turn = session?.turn,
-        )
+            SystemPromptResult(
+                systemPrompt = systemPrompt,
+                useCaseCount = useCases.size,
+                turn = session?.turn,
+            )
+        }
     }
 }
 

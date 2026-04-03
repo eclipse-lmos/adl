@@ -5,6 +5,7 @@
 package org.eclipse.lmos.adl.server.models
 
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
+import org.eclipse.lmos.adl.server.DEFAULT_OWNER
 
 @GraphQLDescription("A version snapshot of an ADL.")
 data class AdlVersion(
@@ -22,4 +23,7 @@ data class AdlVersion(
     val output: String?,
     @GraphQLDescription("When this version was created")
     val createdAt: String,
+
+    @GraphQLDescription("Owner of the ADL version")
+    val owner: String = DEFAULT_OWNER,
 )

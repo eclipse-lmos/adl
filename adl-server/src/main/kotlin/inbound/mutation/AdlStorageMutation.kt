@@ -6,6 +6,8 @@ package org.eclipse.lmos.adl.server.inbound.mutation
 
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Mutation
+import graphql.schema.DataFetchingEnvironment
+import org.eclipse.lmos.adl.server.withRequestOwner
 import org.eclipse.lmos.adl.server.model.Adl
 import org.eclipse.lmos.adl.server.repositories.AdlRepository
 import org.eclipse.lmos.adl.server.repositories.TagRepository
@@ -33,76 +35,90 @@ class AdlStorageMutation(
         @GraphQLDescription("Timestamp when the ADL was created") createdAt: String? = null,
         @GraphQLDescription("Examples") examples: List<String>? = null,
         @GraphQLDescription("The output template") output: String? = null,
+        environment: DataFetchingEnvironment? = null,
     ): StorageResult {
-        val examplesList = examples ?: emptyList()
-        log.info("Storing ADL with id: {} with {} examples", id, examplesList.size)
-        val allExamples = content.toUseCases().flatMap { it.examples.split("\n") }.filter { it.isNotBlank() } + examplesList
-        adlStorage.store(Adl(id, content.trim(), tags, createdAt ?: now().toString(), allExamples, output = output))
-        val storedCount = useCaseStore.storeUtterances(id, allExamples, tags.toSet())
-        tagRepository.saveAll(tags)
-        log.debug("Successfully stored ADL with id: {}. Generated {} embeddings.", id, storedCount)
-        return StorageResult(
-            storedExamplesCount = storedCount,
-            message = "UseCase successfully stored with $storedCount embeddings",
-        )
+        return withRequestOwner(environment) {
+            val examplesList = examples ?: emptyList()
+            log.info("Storing ADL with id: {} with {} examples", id, examplesList.size)
+            val allExamples = content.toUseCases().flatMap { it.examples.split("\n") }.filter { it.isNotBlank() } + examplesList
+            adlStorage.store(Adl(id, content.trim(), tags, createdAt ?: now().toString(), allExamples, output = output))
+            val storedCount = useCaseStore.storeUtterances(id, allExamples, tags.toSet())
+            tagRepository.saveAll(tags)
+            log.debug("Successfully stored ADL with id: {}. Generated {} embeddings.", id, storedCount)
+            StorageResult(
+                storedExamplesCount = storedCount,
+                message = "UseCase successfully stored with $storedCount embeddings",
+            )
+        }
     }
 
     @GraphQLDescription("Updates the tags of an existing ADL.")
     suspend fun updateTags(
         @GraphQLDescription("The unique ID of the ADL") id: String,
         @GraphQLDescription("The new list of tags") tags: List<String>,
+        environment: DataFetchingEnvironment? = null,
     ): StorageResult {
-        log.info("Updating tags for ADL with id: {}", id)
-        val existingAdl = adlStorage.get(id) ?: throw IllegalArgumentException("ADL with id $id not found")
+        return withRequestOwner(environment) {
+            log.info("Updating tags for ADL with id: {}", id)
+            val existingAdl = adlStorage.get(id) ?: throw IllegalArgumentException("ADL with id $id not found")
 
-        val updatedAdl = existingAdl.copy(tags = tags)
-        adlStorage.store(updatedAdl)
-        useCaseStore.storeUtterances(id, existingAdl.examples, tags.toSet())
-        tagRepository.saveAll(tags)
+            val updatedAdl = existingAdl.copy(tags = tags)
+            adlStorage.store(updatedAdl)
+            useCaseStore.storeUtterances(id, existingAdl.examples, tags.toSet())
+            tagRepository.saveAll(tags)
 
-        return StorageResult(
-            storedExamplesCount = existingAdl.examples.size,
-            message = "Tags successfully updated",
-        )
+            StorageResult(
+                storedExamplesCount = existingAdl.examples.size,
+                message = "Tags successfully updated",
+            )
+        }
     }
 
     @GraphQLDescription("Updates the output template of an existing ADL.")
     suspend fun updateOutput(
         @GraphQLDescription("The unique ID of the ADL") id: String,
         @GraphQLDescription("The new output template") output: String,
+        environment: DataFetchingEnvironment? = null,
     ): StorageResult {
-        log.info("Updating output for ADL with id: {}", id)
-        val existingAdl = adlStorage.get(id) ?: throw IllegalArgumentException("ADL with id $id not found")
+        return withRequestOwner(environment) {
+            log.info("Updating output for ADL with id: {}", id)
+            val existingAdl = adlStorage.get(id) ?: throw IllegalArgumentException("ADL with id $id not found")
 
-        val updatedAdl = existingAdl.copy(output = output.takeIf { it.isNotBlank() })
-        adlStorage.store(updatedAdl)
+            val updatedAdl = existingAdl.copy(output = output.takeIf { it.isNotBlank() })
+            adlStorage.store(updatedAdl)
 
-        return StorageResult(
-            storedExamplesCount = existingAdl.examples.size,
-            message = "Output successfully updated",
-        )
+            StorageResult(
+                storedExamplesCount = existingAdl.examples.size,
+                message = "Output successfully updated",
+            )
+        }
     }
 
     @GraphQLDescription("Deletes a UseCase from the embeddings store.")
     suspend fun delete(
         @GraphQLDescription("The unique ID of the UseCase to delete") id: String,
+        environment: DataFetchingEnvironment? = null,
     ): DeletionResult {
-        log.info("Deleting ADL with id: {}", id)
-        adlStorage.deleteById(id)
-        useCaseStore.deleteByUseCaseId(id)
-        return DeletionResult(
-            useCaseId = id,
-            message = "UseCase successfully deleted",
-        )
+        return withRequestOwner(environment) {
+            log.info("Deleting ADL with id: {}", id)
+            adlStorage.deleteById(id)
+            useCaseStore.deleteByUseCaseId(id)
+            DeletionResult(
+                useCaseId = id,
+                message = "UseCase successfully deleted",
+            )
+        }
     }
 
     @GraphQLDescription("Clears all UseCases from the embeddings store.")
-    suspend fun clearAll(): ClearResult {
-        log.info("Clearing all ADLs from store")
-        useCaseStore.clear()
-        return ClearResult(
-            message = "All UseCases successfully cleared",
-        )
+    suspend fun clearAll(environment: DataFetchingEnvironment? = null): ClearResult {
+        return withRequestOwner(environment) {
+            log.info("Clearing all ADLs from store")
+            useCaseStore.clear()
+            ClearResult(
+                message = "All UseCases successfully cleared",
+            )
+        }
     }
 }
 

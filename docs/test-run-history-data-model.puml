@@ -1,0 +1,57 @@
+' SPDX-FileCopyrightText: 2026 Deutsche Telekom AG and others
+' SPDX-License-Identifier: Apache-2.0
+
+@startuml
+skinparam shadowing false
+hide methods
+hide stereotypes
+
+class TestRunResult {
+  +id: String
+  +adlId: String
+  +owner: String
+  +createdAt: String
+  +requestedTestCaseId: String?
+  +overallScore: Double
+  +results: List<TestExecutionResult>
+}
+
+class TestExecutionResult {
+  +testCaseId: String
+  +testCaseName: String
+  +status: String
+  +score: Int
+  +executedVariantIndex: Int?
+  +failureReason: String?
+  +executedConversation: List<ConversationTurn>
+  +actualConversation: List<ConversationTurn>
+  +useCases: List<String>
+  +details: EvalOutput
+}
+
+class TestCase {
+  +id: String
+  +adlId: String?
+  +useCaseId: String?
+  +name: String
+  +description: String
+  +expectedConversation: List<ConversationTurn>
+  +variants: List<List<ConversationTurn>>
+  +contract: Boolean
+  +owner: String
+}
+
+class ConversationTurn {
+  +role: String
+  +content: String
+}
+
+class EvalOutput
+
+TestRunResult "1" *-- "many" TestExecutionResult
+TestExecutionResult "1" *-- "1" TestCase : snapshot
+TestExecutionResult "many" *-- "many" ConversationTurn : executedConversation
+TestExecutionResult "many" *-- "many" ConversationTurn : actualConversation
+TestExecutionResult --> EvalOutput
+@enduml
+

@@ -6,6 +6,8 @@ package org.eclipse.lmos.adl.server.inbound.mutation
 
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Mutation
+import graphql.schema.DataFetchingEnvironment
+import org.eclipse.lmos.adl.server.withRequestOwner
 import org.eclipse.lmos.adl.server.models.UserSettings
 import org.eclipse.lmos.adl.server.repositories.UserSettingsRepository
 import org.eclipse.lmos.adl.server.services.UserDefinedCompleterProvider
@@ -15,25 +17,56 @@ class UserSettingsMutation(
     private val completerProvider: UserDefinedCompleterProvider? = null
 ) : Mutation {
 
-    @GraphQLDescription("Sets the user API key and model name. Returns the settings with the API key masked (only last 3 chars visible).")
+    @GraphQLDescription("Sets the user model and embedding settings. Returns the settings with secret keys masked (only last 3 chars visible).")
     suspend fun setUserSettings(
         @GraphQLDescription("The API key") apiKey: String,
         @GraphQLDescription("The model name") modelName: String,
-        @GraphQLDescription("The model URL") modelUrl: String? = null
+        @GraphQLDescription("The model URL") modelUrl: String? = null,
+        @GraphQLDescription("The embedding model name") embeddingModel: String? = null,
+        @GraphQLDescription("The embedding model URL") embeddingUrl: String? = null,
+        @GraphQLDescription("The embedding API key") embeddingKey: String? = null,
+        environment: DataFetchingEnvironment? = null,
     ): UserSettings {
-        val settings = UserSettings(apiKey = apiKey, modelName = modelName, modelUrl = modelUrl)
-        repository.save(settings)
-        completerProvider?.updateSettings(settings)
-        return maskApiKey(settings)
+        return withRequestOwner(environment) {
+            val existingSettings = repository.get()
+            val settings = UserSettings(
+                apiKey = resolveSecret(apiKey, existingSettings?.apiKey) ?: apiKey,
+                modelName = modelName,
+                modelUrl = modelUrl,
+                embeddingModel = embeddingModel,
+                embeddingUrl = embeddingUrl,
+                embeddingKey = resolveSecret(embeddingKey, existingSettings?.embeddingKey)
+            )
+            val saved = repository.save(settings)
+            completerProvider?.updateSettings(saved)
+            maskApiKey(saved)
+        }
     }
 
     private fun maskApiKey(settings: UserSettings): UserSettings {
-        val key = settings.apiKey
-        val maskedKey = if (key.length <= 3) {
-            key
+        return settings.copy(
+            apiKey = maskSecret(settings.apiKey),
+            embeddingKey = settings.embeddingKey?.let(::maskSecret)
+        )
+    }
+
+    private fun maskSecret(secret: String): String {
+        return if (secret.length <= 3) {
+            secret
         } else {
-            "..." + key.takeLast(3)
+            "..." + secret.takeLast(3)
         }
-        return settings.copy(apiKey = maskedKey)
+    }
+
+    private fun resolveSecret(incomingSecret: String?, existingSecret: String?): String? {
+        if (incomingSecret == null) {
+            return existingSecret
+        }
+
+        if (existingSecret != null && incomingSecret == maskSecret(existingSecret)) {
+            return existingSecret
+        }
+
+        return incomingSecret
     }
 }

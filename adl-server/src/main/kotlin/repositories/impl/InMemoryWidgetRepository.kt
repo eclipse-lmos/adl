@@ -4,6 +4,7 @@
 
 package org.eclipse.lmos.adl.server.repositories.impl
 
+import org.eclipse.lmos.adl.server.currentOwner
 import org.eclipse.lmos.adl.server.models.Widget
 import org.eclipse.lmos.adl.server.repositories.WidgetRepository
 import java.util.concurrent.ConcurrentHashMap
@@ -12,23 +13,28 @@ class InMemoryWidgetRepository : WidgetRepository {
     private val widgets = ConcurrentHashMap<String, Widget>()
 
     override fun save(widget: Widget): Widget {
-        widgets[widget.id] = widget
-        return widget
+        val scopedWidget = widget.copy(owner = currentOwner())
+        widgets[key(scopedWidget.owner, scopedWidget.id)] = scopedWidget
+        return scopedWidget
     }
 
     override fun findById(id: String): Widget? {
-        return widgets[id]
+        return widgets[key(currentOwner(), id)]
     }
 
     override fun findByName(name: String): List<Widget> {
-        return widgets.values.filter { it.name == name }
+        val owner = currentOwner()
+        return widgets.values.filter { it.owner == owner && it.name == name }
     }
 
     override fun findAll(): List<Widget> {
-        return widgets.values.toList()
+        val owner = currentOwner()
+        return widgets.values.filter { it.owner == owner }
     }
 
     override fun delete(id: String): Boolean {
-        return widgets.remove(id) != null
+        return widgets.remove(key(currentOwner(), id)) != null
     }
+
+    private fun key(owner: String, id: String): String = "$owner::$id"
 }

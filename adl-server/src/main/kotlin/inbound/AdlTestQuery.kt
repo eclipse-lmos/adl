@@ -6,6 +6,8 @@ package org.eclipse.lmos.adl.server.inbound
 
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Query
+import graphql.schema.DataFetchingEnvironment
+import org.eclipse.lmos.adl.server.withRequestOwner
 import org.eclipse.lmos.adl.server.models.TestCase
 import org.eclipse.lmos.adl.server.repositories.TestCaseRepository
 
@@ -19,7 +21,8 @@ class AdlTestQuery(
     @GraphQLDescription("Retrieves test cases associated with a ADL.")
     suspend fun getTests(
         @GraphQLDescription("The ADL identifier") id: String,
+        environment: DataFetchingEnvironment? = null,
     ): List<TestCase> {
-        return testCaseRepository.findByADLId(id)
+        return withRequestOwner(environment) { testCaseRepository.findByADLId(id) }
     }
 }

@@ -4,6 +4,8 @@
 package org.eclipse.lmos.adl.server.repositories.impl
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import org.eclipse.lmos.adl.server.DEFAULT_OWNER
+import org.eclipse.lmos.adl.server.currentOwner
 import org.eclipse.lmos.adl.server.models.Widget
 import org.eclipse.lmos.adl.server.repositories.WidgetRepository
 import org.slf4j.LoggerFactory
@@ -25,17 +27,19 @@ class FileSystemWidgetRepository(private val folder: File) : WidgetRepository {
     }
 
     override fun save(widget: Widget): Widget {
-        val targetFile = fileForId(widget.id)
-        val tempFile = File.createTempFile(targetFile.nameWithoutExtension, ".tmp", folder)
+        val scopedWidget = widget.copy(owner = currentOwner())
+        val targetFile = fileForId(scopedWidget.id, scopedWidget.owner)
+        targetFile.parentFile?.mkdirs()
+        val tempFile = File.createTempFile(targetFile.nameWithoutExtension, ".tmp", targetFile.parentFile)
 
         return try {
-            objectMapper.writeValue(tempFile, widget)
+            objectMapper.writeValue(tempFile, scopedWidget)
             try {
                 Files.move(tempFile.toPath(), targetFile.toPath(), REPLACE_EXISTING, ATOMIC_MOVE)
             } catch (_: AtomicMoveNotSupportedException) {
                 Files.move(tempFile.toPath(), targetFile.toPath(), REPLACE_EXISTING)
             }
-            widget
+            scopedWidget
         } catch (exception: Exception) {
             tempFile.delete()
             throw exception
@@ -43,7 +47,7 @@ class FileSystemWidgetRepository(private val folder: File) : WidgetRepository {
     }
 
     override fun findById(id: String): Widget? {
-        val file = fileForId(id)
+        val file = fileForId(id, currentOwner())
         if (!file.exists()) {
             return null
         }
@@ -61,7 +65,8 @@ class FileSystemWidgetRepository(private val folder: File) : WidgetRepository {
     }
 
     override fun findAll(): List<Widget> {
-        return folder.listFiles { _, fileName -> fileName.endsWith(FILE_EXTENSION) }
+        val ownerFolder = folderForOwner(currentOwner())
+        return ownerFolder.listFiles { _, fileName -> fileName.endsWith(FILE_EXTENSION) }
             ?.sortedBy { it.name }
             ?.mapNotNull { file ->
                 try {
@@ -75,12 +80,16 @@ class FileSystemWidgetRepository(private val folder: File) : WidgetRepository {
     }
 
     override fun delete(id: String): Boolean {
-        val file = fileForId(id)
+        val file = fileForId(id, currentOwner())
         return file.exists() && file.delete()
     }
 
-    private fun fileForId(id: String): File {
-        return File(folder, "${encodeId(id)}$FILE_EXTENSION")
+    private fun fileForId(id: String, owner: String): File {
+        return File(folderForOwner(owner), "${encodeId(id)}$FILE_EXTENSION")
+    }
+
+    private fun folderForOwner(owner: String): File {
+        return if (owner == DEFAULT_OWNER) folder else File(folder, encodeId(owner)).apply { mkdirs() }
     }
 
     private fun encodeId(id: String): String {
@@ -88,7 +97,7 @@ class FileSystemWidgetRepository(private val folder: File) : WidgetRepository {
     }
 
     private companion object {
-        const val FILE_EXTENSION = ".json"
+        const val FILE_EXTENSION = ".widget.json"
     }
 }
 

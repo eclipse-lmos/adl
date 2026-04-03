@@ -6,6 +6,8 @@ package org.eclipse.lmos.adl.server.inbound.query
 
 import com.expediagroup.graphql.generator.annotations.GraphQLDescription
 import com.expediagroup.graphql.server.operations.Query
+import graphql.schema.DataFetchingEnvironment
+import org.eclipse.lmos.adl.server.withRequestOwner
 import org.eclipse.lmos.adl.server.model.Adl
 import org.eclipse.lmos.adl.server.models.AdlDiff
 import org.eclipse.lmos.adl.server.models.AdlVersion
@@ -32,33 +34,39 @@ class AdlQuery(
         conversation: List<SimpleMessage>,
         @GraphQLDescription("Maximum number of results to return") limit: Int? = null,
         @GraphQLDescription("Minimum similarity score (0.0 to 1.0)") scoreThreshold: Double? = 0.0,
+        environment: DataFetchingEnvironment? = null,
     ): List<UseCaseMatch> {
         if (limit != null) require(limit in 1..100) { "limit must be between 1 and 100" }
         if (scoreThreshold != null) require(scoreThreshold in 0.0f..1.0f) { "scoreThreshold must be between 0.0 and 1.0" }
         require(conversation.isNotEmpty()) { "conversation must not be empty" }
-        val results = useCaseStore.searchByConversation(conversation, limit ?: 10, scoreThreshold?.toFloat() ?: 0.0f)
-        return results.toMatches()
+        return withRequestOwner(environment) {
+            val results = useCaseStore.searchByConversation(conversation, limit ?: 10, scoreThreshold?.toFloat() ?: 0.0f)
+            results.toMatches()
+        }
     }
 
     @GraphQLDescription("Returns a list of all stored ADLs.")
     suspend fun list(
         @GraphQLDescription("Optional search criteria to filter ADLs by relevance") searchTerm: SearchCriteria? = null,
+        environment: DataFetchingEnvironment? = null,
     ): List<Adl> {
-        val allAdls = adlStorage.list()
-        if (searchTerm == null || searchTerm.term.isBlank()) {
-            return allAdls
-        }
-        val matches = useCaseStore.search(searchTerm.term, searchTerm.limit, searchTerm.threshold.toFloat(), searchTerm.tags?.toSet())
-        val scores = matches.groupBy { it.adlId }.mapValues { it.value.maxOf { match -> match.score } }
+        return withRequestOwner(environment) {
+            val allAdls = adlStorage.list()
+            if (searchTerm == null || searchTerm.term.isBlank()) {
+                return@withRequestOwner allAdls
+            }
+            val matches = useCaseStore.search(searchTerm.term, searchTerm.limit, searchTerm.threshold.toFloat(), searchTerm.tags?.toSet())
+            val scores = matches.groupBy { it.adlId }.mapValues { it.value.maxOf { match -> match.score } }
 
-        return allAdls.filter { it.id in scores.keys }
-            .map { it.copy(relevance = scores[it.id]?.toDouble()) }
-            .sortedByDescending { it.relevance }
+            allAdls.filter { it.id in scores.keys }
+                .map { it.copy(relevance = scores[it.id]?.toDouble()) }
+                .sortedByDescending { it.relevance }
+        }
     }
 
     @GraphQLDescription("Returns a single ADL by ID.")
-    suspend fun searchById(@GraphQLDescription("The ID of the ADL") id: String): Adl? {
-        return adlStorage.get(id)
+    suspend fun searchById(@GraphQLDescription("The ID of the ADL") id: String, environment: DataFetchingEnvironment? = null): Adl? {
+        return withRequestOwner(environment) { adlStorage.get(id) }
     }
 
     @GraphQLDescription("Searches for UseCases using a text query.")
@@ -67,27 +75,32 @@ class AdlQuery(
         @GraphQLDescription("Maximum number of results to return") limit: Int? = null,
         @GraphQLDescription("Minimum similarity score (0.0 to 1.0)") scoreThreshold: Double? = 0.0,
         @GraphQLDescription("Tags to filter by") tags: List<String>? = null,
+        environment: DataFetchingEnvironment? = null,
     ): List<UseCaseMatch> {
         if (limit != null) require(limit in 1..100) { "limit must be between 1 and 100" }
         if (scoreThreshold != null) require(scoreThreshold in 0.0f..1.0f) { "scoreThreshold must be between 0.0 and 1.0" }
         require(query.isNotBlank()) { "query must not be blank" }
-        val results = useCaseStore.search(query, limit ?: 10, scoreThreshold?.toFloat() ?: 0.0f, tags?.toSet())
-        return results.toMatches()
+        return withRequestOwner(environment) {
+            val results = useCaseStore.search(query, limit ?: 10, scoreThreshold?.toFloat() ?: 0.0f, tags?.toSet())
+            results.toMatches()
+        }
     }
 
     @GraphQLDescription("Returns the version history of an ADL.")
     suspend fun versionHistory(
         @GraphQLDescription("The ID of the ADL") id: String,
+        environment: DataFetchingEnvironment? = null,
     ): List<AdlVersion> {
-        return adlStorage.getVersionHistory(id)
+        return withRequestOwner(environment) { adlStorage.getVersionHistory(id) }
     }
 
     @GraphQLDescription("Returns a specific version of an ADL.")
     suspend fun getVersion(
         @GraphQLDescription("The ID of the ADL") id: String,
         @GraphQLDescription("The version number") version: Int,
+        environment: DataFetchingEnvironment? = null,
     ): AdlVersion? {
-        return adlStorage.getVersion(id, version)
+        return withRequestOwner(environment) { adlStorage.getVersion(id, version) }
     }
 
     @GraphQLDescription("Returns a diff between two versions of an ADL.")
@@ -95,11 +108,14 @@ class AdlQuery(
         @GraphQLDescription("The ID of the ADL") id: String,
         @GraphQLDescription("The source version number") fromVersion: Int,
         @GraphQLDescription("The target version number") toVersion: Int,
+        environment: DataFetchingEnvironment? = null,
     ): AdlDiff {
-        val fromContent = resolveVersionContent(id, fromVersion)
-        val toContent = resolveVersionContent(id, toVersion)
-        val diff = computeUnifiedDiff(fromContent, toContent, fromVersion, toVersion)
-        return AdlDiff(adlId = id, fromVersion = fromVersion, toVersion = toVersion, contentDiff = diff)
+        return withRequestOwner(environment) {
+            val fromContent = resolveVersionContent(id, fromVersion)
+            val toContent = resolveVersionContent(id, toVersion)
+            val diff = computeUnifiedDiff(fromContent, toContent, fromVersion, toVersion)
+            AdlDiff(adlId = id, fromVersion = fromVersion, toVersion = toVersion, contentDiff = diff)
+        }
     }
 
     private suspend fun resolveVersionContent(id: String, version: Int): String {

@@ -4,6 +4,7 @@
 
 package org.eclipse.lmos.adl.server.repositories.impl.db
 
+import org.eclipse.lmos.adl.server.currentOwner
 import org.eclipse.lmos.adl.server.model.Adl
 import org.eclipse.lmos.adl.server.models.AdlVersion
 import org.eclipse.lmos.adl.server.repositories.AdlRepository
@@ -20,14 +21,17 @@ class PostgresAdlRepository(dataSource: DataSource) : AdlRepository {
     }
 
     override suspend fun store(adl: Adl): Adl = newSuspendedTransaction {
+        val owner = currentOwner()
+        val scopedAdl = adl.copy(owner = owner)
         val now = OffsetDateTime.now()
-        val existing = AdlsTable.selectAll().where { AdlsTable.id eq adl.id }.singleOrNull()
+        val existing = AdlsTable.selectAll().where { (AdlsTable.owner eq owner) and (AdlsTable.id eq scopedAdl.id) }.singleOrNull()
 
         if (existing != null) {
             // Save current version to history before updating
             val currentVersion = existing[AdlsTable.version]
             AdlVersionsTable.insert {
-                it[adlId] = adl.id
+                it[AdlVersionsTable.owner] = owner
+                it[adlId] = scopedAdl.id
                 it[version] = currentVersion
                 it[content] = existing[AdlsTable.content]
                 it[tags] = existing[AdlsTable.tags]
@@ -37,57 +41,67 @@ class PostgresAdlRepository(dataSource: DataSource) : AdlRepository {
             }
 
             val newVersion = currentVersion + 1
-            AdlsTable.update({ AdlsTable.id eq adl.id }) {
-                it[content] = adl.content
-                it[tags] = adl.tags
-                it[examples] = adl.examples
-                it[output] = adl.output
+            AdlsTable.update({ (AdlsTable.owner eq owner) and (AdlsTable.id eq scopedAdl.id) }) {
+                it[content] = scopedAdl.content
+                it[tags] = scopedAdl.tags
+                it[examples] = scopedAdl.examples
+                it[output] = scopedAdl.output
                 it[version] = newVersion
                 it[updatedAt] = now
             }
-            adl.copy(version = newVersion.toString())
+            scopedAdl.copy(version = newVersion.toString())
         } else {
             AdlsTable.insert {
-                it[id] = adl.id
-                it[content] = adl.content
-                it[tags] = adl.tags
-                it[examples] = adl.examples
-                it[output] = adl.output
+                it[AdlsTable.owner] = owner
+                it[id] = scopedAdl.id
+                it[content] = scopedAdl.content
+                it[tags] = scopedAdl.tags
+                it[examples] = scopedAdl.examples
+                it[output] = scopedAdl.output
                 it[version] = 1
                 it[createdAt] = now
                 it[updatedAt] = now
             }
-            adl.copy(version = "1")
+            scopedAdl.copy(version = "1")
         }
     }
 
     override suspend fun get(id: String): Adl? = newSuspendedTransaction {
-        AdlsTable.selectAll().where { AdlsTable.id eq id }.singleOrNull()?.toAdl()
+        val owner = currentOwner()
+        AdlsTable.selectAll().where { (AdlsTable.owner eq owner) and (AdlsTable.id eq id) }.singleOrNull()?.toAdl()
     }
 
     override suspend fun list(): List<Adl> = newSuspendedTransaction {
-        AdlsTable.selectAll().map { it.toAdl() }
+        val owner = currentOwner()
+        AdlsTable.selectAll().where { AdlsTable.owner eq owner }.map { it.toAdl() }
     }
 
     override suspend fun deleteById(id: String): Unit = newSuspendedTransaction {
-        AdlsTable.deleteWhere { AdlsTable.id eq id }
+        val owner = currentOwner()
+        val deletedRows =
+            AdlVersionsTable.deleteWhere { (AdlVersionsTable.owner eq owner) and (AdlVersionsTable.adlId eq id) } +
+                AdlsTable.deleteWhere { (AdlsTable.owner eq owner) and (AdlsTable.id eq id) }
+        deletedRows
         Unit
     }
 
     override suspend fun getVersionHistory(id: String): List<AdlVersion> = newSuspendedTransaction {
+        val owner = currentOwner()
         AdlVersionsTable.selectAll()
-            .where { AdlVersionsTable.adlId eq id }
+            .where { (AdlVersionsTable.owner eq owner) and (AdlVersionsTable.adlId eq id) }
             .orderBy(AdlVersionsTable.version, SortOrder.DESC)
             .map { it.toAdlVersion() }
     }
 
     override suspend fun getVersion(id: String, version: Int): AdlVersion? = newSuspendedTransaction {
+        val owner = currentOwner()
         AdlVersionsTable.selectAll()
-            .where { (AdlVersionsTable.adlId eq id) and (AdlVersionsTable.version eq version) }
+            .where { (AdlVersionsTable.owner eq owner) and (AdlVersionsTable.adlId eq id) and (AdlVersionsTable.version eq version) }
             .singleOrNull()?.toAdlVersion()
     }
 
     private fun ResultRow.toAdl() = Adl(
+        owner = this[AdlsTable.owner],
         id = this[AdlsTable.id],
         content = this[AdlsTable.content],
         tags = this[AdlsTable.tags],
@@ -98,6 +112,7 @@ class PostgresAdlRepository(dataSource: DataSource) : AdlRepository {
     )
 
     private fun ResultRow.toAdlVersion() = AdlVersion(
+        owner = this[AdlVersionsTable.owner],
         adlId = this[AdlVersionsTable.adlId],
         version = this[AdlVersionsTable.version],
         content = this[AdlVersionsTable.content],
