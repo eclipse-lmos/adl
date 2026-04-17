@@ -8,6 +8,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
+import io.ktor.util.toMap
 import kotlinx.serialization.json.Json
 import org.eclipse.lmos.adl.server.OwnerAccessResolver
 import org.eclipse.lmos.adl.server.ensureGranted
@@ -22,6 +23,10 @@ import org.eclipse.lmos.arc.agents.conversation.AssistantMessage
 import org.eclipse.lmos.arc.agents.conversation.Conversation
 import org.eclipse.lmos.arc.agents.conversation.SystemMessage
 import org.eclipse.lmos.arc.agents.conversation.UserMessage
+import org.eclipse.lmos.arc.agents.dsl.beans
+import org.eclipse.lmos.arc.agents.dsl.getOptional
+import org.eclipse.lmos.arc.api.AgentRequest
+import org.eclipse.lmos.arc.api.ConversationContext
 import org.eclipse.lmos.arc.core.Failure
 import org.eclipse.lmos.arc.core.Success
 import java.util.UUID
@@ -49,7 +54,7 @@ fun Route.openAICompletions(
                 }
 
                 val conversationId = call.request.headers["X-Conversation-Id"]?.takeIf { it.isNotBlank() }
-                    ?: UUID.randomUUID().toString()
+                    ?: call.request.headers["X-Session-Id"]?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()
 
                 // Create initial conversation from messages
                 val initialConversation = Conversation(
@@ -57,11 +62,19 @@ fun Route.openAICompletions(
                     transcript = messages
                 )
 
-                val result = assistantAgent.execute(initialConversation, emptySet())
+                val result = assistantAgent.execute(
+                    initialConversation, setOf(
+                        AgentRequest(
+                            messages = emptyList(),
+                            systemContext = listOf(),
+                            conversationContext = ConversationContext(conversationId = conversationId)
+                        )
+                    )
+                )
 
                 val conversation = when (result) {
-                     is Success -> result.value
-                     is Failure -> throw RuntimeException("Agent execution failed: ${result.reason}")
+                    is Success -> result.value
+                    is Failure -> throw RuntimeException("Agent execution failed: ${result.reason}")
                 }
 
                 val lastMessage = conversation.transcript.lastOrNull()

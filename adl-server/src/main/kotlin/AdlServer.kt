@@ -71,6 +71,7 @@ import org.eclipse.lmos.adl.server.repositories.impl.InMemoryAdlRepository
 import org.eclipse.lmos.adl.server.repositories.impl.db.PostgresAdlRepository
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import org.eclipse.lmos.adl.server.models.UserSettings
 import org.flywaydb.core.Flyway
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryAgentRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryOrganizationRepository
@@ -177,7 +178,7 @@ fun startServer(
     // val embeddingModel = AllMiniLmL6V2EmbeddingModel()
     val embeddingModel = BgeSmallEnV15QuantizedEmbeddingModel()
     //val embeddingModel = OllamaEmbeddingModel.builder()
-        //    .baseUrl("http://localhost:11434")
+    //    .baseUrl("http://localhost:11434")
     // .modelName("embeddinggemma").build()
     // val useCaseStore: UseCaseEmbeddingsRepository = QdrantUseCaseEmbeddingsStore(embeddingModel, qdrantConfig)
     val embeddingStore: UseCaseEmbeddingsRepository = InMemoryUseCaseEmbeddingsStore(embeddingModel)
@@ -215,6 +216,17 @@ fun startServer(
         else -> InMemoryTestRunRepository()
     }
     val userSettingsRepository = InMemoryUserSettingsRepository()
+    if (System.getenv("ARC_AI_KEY") != null) {
+        runBlocking {
+            userSettingsRepository.save(
+                UserSettings(
+                    apiKey = System.getenv("ARC_AI_KEY"),
+                    modelName = System.getenv("ARC_MODEL"),
+                    modelUrl = System.getenv("ARC_AI_URL"),
+                )
+            )
+        }
+    }
     val widgetRepository = when {
         fileRepositoryFolders.widgetFolder != null -> FileSystemWidgetRepository(fileRepositoryFolders.widgetFolder)
         else -> InMemoryWidgetRepository()
