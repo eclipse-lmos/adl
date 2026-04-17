@@ -21,12 +21,12 @@ fun Route.clientEvents(
 ) {
     route("/events") {
         intercept(ApplicationCallPipeline.Plugins) {
-            val ownerAccess = ownerAccessResolver.resolve(call.request.headers)
+            val ownerAccess = ownerAccessResolver.resolve(call.request)
             ownerAccess.ensureGranted()
         }
 
         sse {
-            val ownerAccess = ownerAccessResolver.resolve(call.request.headers)
+            val ownerAccess = ownerAccessResolver.resolve(call.request)
 
             heartbeat {
                 period = 5.seconds

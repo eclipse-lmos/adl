@@ -46,15 +46,63 @@ data class OwnerAccessFailure(
  */
 class OwnerAccessResolver(
     private val organizationRepository: OrganizationRepository,
+    private val organizationSessionCookieManager: OrganizationSessionCookieManager,
 ) {
+    suspend fun resolve(request: ApplicationRequest): OwnerAccess = resolve(
+        headers = request.headers,
+        sessionCookieValue = request.cookies[ORGANIZATION_SESSION_COOKIE_NAME],
+    )
+
     suspend fun resolve(headers: Headers): OwnerAccess {
+        return resolve(headers, sessionCookieValue = null)
+    }
+
+    private suspend fun resolve(
+        headers: Headers,
+        sessionCookieValue: String?,
+    ): OwnerAccess {
         val requestedOrganizationId = headers[ORGANIZATION_ID_HEADER]?.trim()?.takeIf { it.isNotBlank() }
-        val rawApiKey = sequenceOf(ORGANIZATION_API_KEY_HEADER, LEGACY_ORGANIZATION_API_KEY_HEADER)
+        val headerApiKey = sequenceOf(ORGANIZATION_API_KEY_HEADER, LEGACY_ORGANIZATION_API_KEY_HEADER)
             .mapNotNull { header -> headers[header]?.trim()?.takeIf { it.isNotBlank() } }
             .firstOrNull()
 
-        if (rawApiKey != null) {
-            val organization = organizationRepository.resolveByApiKey(rawApiKey)
+        if (headerApiKey != null) {
+            return resolveApiKeyAccess(rawApiKey = headerApiKey, requestedOrganizationId = requestedOrganizationId)
+        }
+
+        if (requestedOrganizationId == DEFAULT_OWNER) {
+            return OwnerAccess(owner = DEFAULT_OWNER, requestedOrganizationId = requestedOrganizationId)
+        }
+
+        val sessionApiKey = organizationSessionCookieManager.resolveApiKey(sessionCookieValue)
+        if (sessionApiKey != null) {
+            return resolveApiKeyAccess(rawApiKey = sessionApiKey, requestedOrganizationId = requestedOrganizationId)
+        }
+
+        if (!sessionCookieValue.isNullOrBlank() && requestedOrganizationId != null && requestedOrganizationId != DEFAULT_OWNER) {
+            return OwnerAccess(
+                owner = DEFAULT_OWNER,
+                requestedOrganizationId = requestedOrganizationId,
+                failure = OwnerAccessFailure(statusCode = 403, message = "Invalid or revoked organization API key."),
+            )
+        }
+
+        if (requestedOrganizationId != null && requestedOrganizationId != DEFAULT_OWNER) {
+            return OwnerAccess(
+                owner = DEFAULT_OWNER,
+                requestedOrganizationId = requestedOrganizationId,
+                failure = OwnerAccessFailure(statusCode = 401, message = "Missing organization API key."),
+            )
+        }
+
+        return OwnerAccess(owner = DEFAULT_OWNER, requestedOrganizationId = requestedOrganizationId)
+    }
+
+    private suspend fun resolveApiKeyAccess(
+        rawApiKey: String,
+        requestedOrganizationId: String?,
+    ): OwnerAccess {
+        val organization = organizationRepository.resolveByApiKey(rawApiKey)
                 ?: return OwnerAccess(
                     owner = DEFAULT_OWNER,
                     requestedOrganizationId = requestedOrganizationId,
@@ -72,18 +120,7 @@ class OwnerAccessResolver(
                 )
             }
 
-            return OwnerAccess(owner = organization.id, requestedOrganizationId = requestedOrganizationId ?: organization.id)
-        }
-
-        if (requestedOrganizationId != null && requestedOrganizationId != DEFAULT_OWNER) {
-            return OwnerAccess(
-                owner = DEFAULT_OWNER,
-                requestedOrganizationId = requestedOrganizationId,
-                failure = OwnerAccessFailure(statusCode = 401, message = "Missing organization API key."),
-            )
-        }
-
-        return OwnerAccess(owner = DEFAULT_OWNER, requestedOrganizationId = requestedOrganizationId)
+        return OwnerAccess(owner = organization.id, requestedOrganizationId = requestedOrganizationId ?: organization.id)
     }
 }
 
@@ -120,7 +157,7 @@ class DefaultKtorGraphQLContextFactory(
     private val ownerAccessResolver: OwnerAccessResolver,
 ) : KtorGraphQLContextFactory() {
     override suspend fun generateContext(request: ApplicationRequest): GraphQLContext {
-        val ownerAccess = ownerAccessResolver.resolve(request.headers)
+        val ownerAccess = ownerAccessResolver.resolve(request)
         return GraphQLContext.newContext()
             .of(OWNER_CONTEXT_KEY, ownerAccess.owner)
             .of(OWNER_ACCESS_CONTEXT_KEY, ownerAccess)

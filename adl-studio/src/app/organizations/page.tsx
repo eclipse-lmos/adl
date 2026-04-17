@@ -1,31 +1,29 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useClient } from 'urql';
 import AppHeader from '@/components/header';
 import CreateOrganizationPanel from '@/components/organizations/CreateOrganizationPanel';
 import { IssuedApiKeyDialogProvider } from '@/components/organizations/IssuedApiKeyDialogContext';
 import IssuedApiKeyDialogHost from '@/components/organizations/IssuedApiKeyDialogHost';
 import ManagedOrganizationPanel from '@/components/organizations/ManagedOrganizationPanel';
 import OrganizationAccessPanel from '@/components/organizations/OrganizationAccessPanel';
-import type { OrganizationRecord } from '@/components/organizations/types';
 import { useToast } from '@/hooks/use-toast';
 import {
   buildOrganizationAuthorizationHeaders,
   buildOrganizationHeaders,
+  clearOrganizationAccessSession,
   DEFAULT_ORGANIZATION_ID,
+  exchangeOrganizationApiKeyForSession,
   readOrganizationAccess,
   subscribeToOrganizationAccess,
   writeOrganizationAccess,
 } from '@/lib/organization-access';
-import { OrganizationsQuery } from '@/lib/graphql/queries';
 
 export default function OrganizationsPage() {
   const initialAccess = readOrganizationAccess();
-  const graphqlClient = useClient();
   const { toast } = useToast();
   const [effectiveAccess, setEffectiveAccess] = useState(initialAccess);
-  const [draftOrganizationApiKey, setDraftOrganizationApiKey] = useState(initialAccess.apiKey);
+  const [draftOrganizationApiKey, setDraftOrganizationApiKey] = useState('');
   const [isResolvingOrganizationAccess, setIsResolvingOrganizationAccess] = useState(false);
   const [managedOrganizationId, setManagedOrganizationId] = useState(initialAccess.authorizedOrganizationId);
   const [organizationsRefreshVersion, setOrganizationsRefreshVersion] = useState(0);
@@ -34,7 +32,6 @@ export default function OrganizationsPage() {
     setEffectiveAccess(readOrganizationAccess());
     return subscribeToOrganizationAccess((nextStoredAccess) => {
       setEffectiveAccess(nextStoredAccess);
-      setDraftOrganizationApiKey(nextStoredAccess.apiKey);
     });
   }, []);
 
@@ -44,29 +41,54 @@ export default function OrganizationsPage() {
     activeOrganizationId: DEFAULT_ORGANIZATION_ID,
     authorizedOrganizationId: '',
     authorizedOrganizationName: '',
-    apiKey: '',
   }), []);
 
   const persistOrganizationAccess = useCallback((value: Parameters<typeof writeOrganizationAccess>[0]) => {
     const nextState = writeOrganizationAccess(value);
     setEffectiveAccess(nextState);
-    setDraftOrganizationApiKey(nextState.apiKey);
     return nextState;
   }, []);
-
-  const resetToPublicAccess = useCallback(() => {
-    persistOrganizationAccess({
-      activeOrganizationId: DEFAULT_ORGANIZATION_ID,
-      authorizedOrganizationId: '',
-      authorizedOrganizationName: '',
-      apiKey: '',
-    });
-    setDraftOrganizationApiKey('');
-  }, [persistOrganizationAccess]);
 
   const requestOrganizationsRefresh = useCallback(() => {
     setOrganizationsRefreshVersion((currentVersion) => currentVersion + 1);
   }, []);
+
+  const activateAuthorizedOrganizationSession = useCallback(async (
+    rawApiKey: string,
+    options?: {
+      activeOrganizationId?: string;
+      fallbackOrganizationId?: string;
+      fallbackOrganizationName?: string;
+    },
+  ) => {
+    const resolvedOrganization = await exchangeOrganizationApiKeyForSession(rawApiKey);
+    const resolvedOrganizationId = resolvedOrganization.organizationId || options?.fallbackOrganizationId || '';
+    const resolvedOrganizationName = resolvedOrganization.organizationName || options?.fallbackOrganizationName || resolvedOrganizationId;
+    const activeOrganizationId = options?.activeOrganizationId || resolvedOrganizationId || DEFAULT_ORGANIZATION_ID;
+
+    persistOrganizationAccess({
+      activeOrganizationId,
+      authorizedOrganizationId: resolvedOrganizationId,
+      authorizedOrganizationName: resolvedOrganizationName,
+    });
+    setManagedOrganizationId(resolvedOrganizationId);
+    requestOrganizationsRefresh();
+
+    return {
+      organizationId: resolvedOrganizationId,
+      organizationName: resolvedOrganizationName,
+    };
+  }, [persistOrganizationAccess, requestOrganizationsRefresh]);
+
+  const resetToPublicAccess = useCallback(() => {
+    void clearOrganizationAccessSession();
+    persistOrganizationAccess({
+      activeOrganizationId: DEFAULT_ORGANIZATION_ID,
+      authorizedOrganizationId: '',
+      authorizedOrganizationName: '',
+    });
+    setDraftOrganizationApiKey('');
+  }, [persistOrganizationAccess]);
 
   const handleActivatePublicOrganization = useCallback(() => {
     persistOrganizationAccess({ activeOrganizationId: DEFAULT_ORGANIZATION_ID });
@@ -100,68 +122,37 @@ export default function OrganizationsPage() {
     }
 
     setIsResolvingOrganizationAccess(true);
-    const result = await graphqlClient.query(
-      OrganizationsQuery,
-      {},
-      {
-        requestPolicy: 'network-only',
-        fetchOptions: {
-          headers: buildOrganizationAuthorizationHeaders({
-            activeOrganizationId: DEFAULT_ORGANIZATION_ID,
-            authorizedOrganizationId: '',
-            authorizedOrganizationName: '',
-            apiKey: trimmedApiKey,
-          }),
-        },
-      },
-    ).toPromise();
-    setIsResolvingOrganizationAccess(false);
-
-    if (result.error) {
+    try {
+      const resolvedOrganization = await activateAuthorizedOrganizationSession(trimmedApiKey);
+      setDraftOrganizationApiKey('');
+      toast({
+        title: 'Organization activated',
+        description: `${resolvedOrganization.organizationName} (${resolvedOrganization.organizationId}) is now active.`,
+      });
+    } catch (error) {
       toast({
         title: 'Organization activation failed',
-        description: result.error.message,
+        description: error instanceof Error ? error.message : 'The organization API key could not be exchanged for a session.',
         variant: 'destructive',
       });
-      return;
+    } finally {
+      setIsResolvingOrganizationAccess(false);
     }
-
-    const resolvedOrganization = (result.data?.organizations || []).find(
-      (organization: OrganizationRecord) => organization.id !== DEFAULT_ORGANIZATION_ID,
-    );
-
-    if (!resolvedOrganization) {
-      toast({
-        title: 'No organization resolved',
-        description: 'The API key did not authorize any non-public organization.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    persistOrganizationAccess({
-      activeOrganizationId: resolvedOrganization.id,
-      authorizedOrganizationId: resolvedOrganization.id,
-      authorizedOrganizationName: resolvedOrganization.name,
-      apiKey: trimmedApiKey,
-    });
-    setManagedOrganizationId(resolvedOrganization.id);
-    requestOrganizationsRefresh();
-    toast({
-      title: 'Organization activated',
-      description: `${resolvedOrganization.name} (${resolvedOrganization.id}) is now active.`,
-    });
-  }, [draftOrganizationApiKey, graphqlClient, persistOrganizationAccess, requestOrganizationsRefresh, toast]);
+  }, [activateAuthorizedOrganizationSession, draftOrganizationApiKey, toast]);
 
   const handleOrganizationCreated = useCallback((organizationId: string, organizationName: string, rawApiKey: string) => {
-    persistOrganizationAccess({
+    void activateAuthorizedOrganizationSession(rawApiKey, {
       activeOrganizationId: organizationId,
-      authorizedOrganizationId: organizationId,
-      authorizedOrganizationName: organizationName,
-      apiKey: rawApiKey,
+      fallbackOrganizationId: organizationId,
+      fallbackOrganizationName: organizationName,
+    }).catch((error) => {
+      toast({
+        title: 'Organization session update failed',
+        description: error instanceof Error ? error.message : 'The initial API key could not be exchanged for a session.',
+        variant: 'destructive',
+      });
     });
-    setManagedOrganizationId(organizationId);
-  }, [persistOrganizationAccess]);
+  }, [activateAuthorizedOrganizationSession, toast]);
 
   const handleAuthorizedOrganizationNameChange = useCallback((organizationName: string) => {
     persistOrganizationAccess({
@@ -174,13 +165,18 @@ export default function OrganizationsPage() {
       return;
     }
 
-    persistOrganizationAccess({
+    void activateAuthorizedOrganizationSession(rawApiKey, {
       activeOrganizationId: effectiveAccess.activeOrganizationId,
-      authorizedOrganizationName: organizationName || effectiveAccess.authorizedOrganizationName,
-      apiKey: rawApiKey,
+      fallbackOrganizationId: effectiveAccess.authorizedOrganizationId,
+      fallbackOrganizationName: organizationName || effectiveAccess.authorizedOrganizationName,
+    }).catch((error) => {
+      toast({
+        title: 'Organization session update failed',
+        description: error instanceof Error ? error.message : 'The new API key could not be exchanged for a session.',
+        variant: 'destructive',
+      });
     });
-    setDraftOrganizationApiKey(rawApiKey);
-  }, [effectiveAccess.activeOrganizationId, effectiveAccess.authorizedOrganizationName, persistOrganizationAccess]);
+  }, [activateAuthorizedOrganizationSession, effectiveAccess.activeOrganizationId, effectiveAccess.authorizedOrganizationId, effectiveAccess.authorizedOrganizationName, toast]);
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">

@@ -1,5 +1,4 @@
 export const ORGANIZATION_ID_HEADER = 'X-Organization-Id';
-export const ORGANIZATION_API_KEY_HEADER = 'X-Api-Key';
 
 const STORAGE_KEY = 'adl.organization-access';
 export const DEFAULT_ORGANIZATION_ID = 'public';
@@ -13,11 +12,20 @@ export type OrganizationAccessState = {
   activeOrganizationId: string;
   authorizedOrganizationId: string;
   authorizedOrganizationName: string;
-  apiKey: string;
 };
 
 type PersistedOrganizationAccessState = Partial<OrganizationAccessState> & {
+  apiKey?: string;
   selectedOrganizationId?: string;
+};
+
+type OrganizationSessionExchangeResponse = {
+  organizationId: string;
+  organizationName: string;
+};
+
+type OrganizationSessionErrorResponse = {
+  message?: string;
 };
 
 export type KnownOrganizationOption = {
@@ -33,16 +41,12 @@ const defaultState = (): OrganizationAccessState => ({
   activeOrganizationId: DEFAULT_ORGANIZATION_ID,
   authorizedOrganizationId: '',
   authorizedOrganizationName: '',
-  apiKey: '',
 });
 
 const sanitizeState = (value: PersistedOrganizationAccessState | null | undefined): OrganizationAccessState => {
-  const apiKey = value?.apiKey?.trim() || '';
   const legacySelectedOrganizationId = value?.selectedOrganizationId?.trim() || '';
-  const authorizedOrganizationId = apiKey
-    ? value?.authorizedOrganizationId?.trim() || (legacySelectedOrganizationId !== DEFAULT_ORGANIZATION_ID ? legacySelectedOrganizationId : '')
-    : '';
-  const authorizedOrganizationName = apiKey ? value?.authorizedOrganizationName?.trim() || '' : '';
+  const authorizedOrganizationId = value?.authorizedOrganizationId?.trim() || (legacySelectedOrganizationId !== DEFAULT_ORGANIZATION_ID ? legacySelectedOrganizationId : '');
+  const authorizedOrganizationName = authorizedOrganizationId ? value?.authorizedOrganizationName?.trim() || '' : '';
   const preferredActiveOrganizationId = value?.activeOrganizationId?.trim() || legacySelectedOrganizationId || DEFAULT_ORGANIZATION_ID;
   const activeOrganizationId = preferredActiveOrganizationId === DEFAULT_ORGANIZATION_ID
     ? DEFAULT_ORGANIZATION_ID
@@ -54,8 +58,13 @@ const sanitizeState = (value: PersistedOrganizationAccessState | null | undefine
     activeOrganizationId,
     authorizedOrganizationId,
     authorizedOrganizationName,
-    apiKey,
   };
+};
+
+const persistState = (state: OrganizationAccessState) => {
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
 };
 
 export function readOrganizationAccess(): OrganizationAccessState {
@@ -69,7 +78,12 @@ export function readOrganizationAccess(): OrganizationAccessState {
   }
 
   try {
-    return sanitizeState(JSON.parse(storedValue));
+    const parsedValue = JSON.parse(storedValue) as PersistedOrganizationAccessState;
+    const sanitizedState = sanitizeState(parsedValue);
+    if (Object.prototype.hasOwnProperty.call(parsedValue, 'apiKey') || storedValue !== JSON.stringify(sanitizedState)) {
+      persistState(sanitizedState);
+    }
+    return sanitizedState;
   } catch {
     return defaultState();
   }
@@ -81,9 +95,7 @@ export function writeOrganizationAccess(value: PersistedOrganizationAccessState)
     ...value,
   });
 
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
-  }
+  persistState(nextState);
 
   listeners.forEach(listener => listener(nextState));
   return nextState;
@@ -105,29 +117,15 @@ export function subscribeToOrganizationAccess(listener: Listener): () => void {
 }
 
 export function buildOrganizationHeaders(state: OrganizationAccessState = readOrganizationAccess()): Record<string, string> {
-  if (state.activeOrganizationId === DEFAULT_ORGANIZATION_ID) {
-    return {
-      [ORGANIZATION_ID_HEADER]: DEFAULT_ORGANIZATION_ID,
-    };
-  }
-
-  const headers: Record<string, string> = {};
-
-  if (state.activeOrganizationId) {
-    headers[ORGANIZATION_ID_HEADER] = state.activeOrganizationId;
-  }
-
-  if (state.activeOrganizationId === state.authorizedOrganizationId && state.apiKey) {
-    headers[ORGANIZATION_API_KEY_HEADER] = state.apiKey;
-  }
-
-  return headers;
+  return {
+    [ORGANIZATION_ID_HEADER]: state.activeOrganizationId || DEFAULT_ORGANIZATION_ID,
+  };
 }
 
 export function buildOrganizationAuthorizationHeaders(state: OrganizationAccessState = readOrganizationAccess()): Record<string, string> {
-  if (state.apiKey) {
+  if (state.authorizedOrganizationId) {
     return {
-      [ORGANIZATION_API_KEY_HEADER]: state.apiKey,
+      [ORGANIZATION_ID_HEADER]: state.authorizedOrganizationId,
     };
   }
 
@@ -166,7 +164,49 @@ export function getGraphqlUrl(): string {
   return process.env.NEXT_PUBLIC_GRAPHQL_URL || 'http://localhost:8080/graphql';
 }
 
+export function getServerBaseUrl(): string {
+  const fallbackOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8080';
+  return new URL(getGraphqlUrl(), fallbackOrigin).origin;
+}
+
 export function getEventsUrl(): string {
   return process.env.NEXT_PUBLIC_EVENTS_URL || 'http://localhost:8080/events';
+}
+
+export function getOrganizationSessionUrl(): string {
+  return new URL('/api/organization-access/session', `${getServerBaseUrl()}/`).toString();
+}
+
+async function parseSessionError(response: Response): Promise<string> {
+  try {
+    const payload = await response.json() as OrganizationSessionErrorResponse;
+    return payload.message || `Organization session request failed with ${response.status}.`;
+  } catch {
+    return `Organization session request failed with ${response.status}.`;
+  }
+}
+
+export async function exchangeOrganizationApiKeyForSession(apiKey: string): Promise<OrganizationSessionExchangeResponse> {
+  const response = await fetch(getOrganizationSessionUrl(), {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ apiKey: apiKey.trim() }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseSessionError(response));
+  }
+
+  return response.json() as Promise<OrganizationSessionExchangeResponse>;
+}
+
+export async function clearOrganizationAccessSession(): Promise<void> {
+  await fetch(getOrganizationSessionUrl(), {
+    method: 'DELETE',
+    credentials: 'include',
+  });
 }
 

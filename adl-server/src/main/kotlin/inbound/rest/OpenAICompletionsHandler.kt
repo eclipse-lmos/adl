@@ -32,7 +32,7 @@ fun Route.openAICompletions(
 ) {
     route("/v1/chat/completions") {
         post {
-            val ownerAccess = ownerAccessResolver.resolve(call.request.headers)
+            val ownerAccess = ownerAccessResolver.resolve(call.request)
             ownerAccess.ensureGranted()
 
             withOwner(ownerAccess.owner) {

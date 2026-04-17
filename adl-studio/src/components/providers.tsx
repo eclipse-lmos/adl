@@ -6,33 +6,15 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { initializeFirebase, FirebaseClientProvider } from '@/firebase';
 import {
   buildOrganizationHeaders,
+  clearOrganizationAccessSession,
   getGraphqlUrl,
   isOrganizationAccessErrorMessage,
-  ORGANIZATION_API_KEY_HEADER,
   readOrganizationAccess,
   resetOrganizationAccess,
   subscribeToOrganizationAccess,
 } from '@/lib/organization-access';
 
 const { firebaseApp, firestore, auth } = initializeFirebase();
-
-function readHeaderValue(headers: HeadersInit | undefined, headerName: string): string {
-  if (!headers) {
-    return '';
-  }
-
-  if (headers instanceof Headers) {
-    return headers.get(headerName) || '';
-  }
-
-  if (Array.isArray(headers)) {
-    const headerEntry = headers.find(([name]) => name.toLowerCase() === headerName.toLowerCase());
-    return headerEntry?.[1] || '';
-  }
-
-  const matchingHeader = Object.entries(headers).find(([name]) => name.toLowerCase() === headerName.toLowerCase());
-  return typeof matchingHeader?.[1] === 'string' ? matchingHeader[1] : '';
-}
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [organizationAccess, setOrganizationAccess] = React.useState(() => readOrganizationAccess());
@@ -48,15 +30,18 @@ export function Providers({ children }: { children: React.ReactNode }) {
     url: getGraphqlUrl(),
     exchanges: [cacheExchange, fetchExchange],
     fetch: async (input, init) => {
-      const response = await fetch(input, init);
+      const response = await fetch(input, {
+        ...init,
+        credentials: 'include',
+      });
 
       try {
         const payload = await response.clone().json() as { errors?: Array<{ message?: string }> };
-        const requestApiKey = readHeaderValue(init?.headers, ORGANIZATION_API_KEY_HEADER);
         const hasOrganizationAccessError = payload.errors?.some(({ message }) => isOrganizationAccessErrorMessage(message));
 
-        if (hasOrganizationAccessError && requestApiKey && requestApiKey === organizationAccess.apiKey) {
+        if (hasOrganizationAccessError && organizationAccess.authorizedOrganizationId) {
           resetOrganizationAccess();
+          void clearOrganizationAccessSession();
         }
       } catch {
         // Ignore non-JSON responses and let urql handle the original response.
@@ -65,6 +50,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       return response;
     },
     fetchOptions: () => ({
+      credentials: 'include',
       headers: buildOrganizationHeaders(organizationAccess),
     }),
   }), [organizationAccess]);

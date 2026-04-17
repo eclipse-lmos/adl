@@ -59,6 +59,7 @@ import org.eclipse.lmos.adl.server.inbound.query.WidgetQuery
 import org.eclipse.lmos.adl.server.inbound.query.TagsQuery
 import org.eclipse.lmos.adl.server.inbound.rest.clientEvents
 import org.eclipse.lmos.adl.server.inbound.rest.openAICompletions
+import org.eclipse.lmos.adl.server.inbound.rest.organizationAccessSessions
 import org.eclipse.lmos.adl.server.repositories.AdlRepository
 import org.eclipse.lmos.adl.server.repositories.AgentRepository
 import org.eclipse.lmos.adl.server.repositories.OrganizationRepository
@@ -95,6 +96,7 @@ import org.eclipse.lmos.adl.server.services.UserDefinedCompleterProvider
 import org.eclipse.lmos.adl.server.sessions.InMemorySessions
 import org.eclipse.lmos.adl.server.templates.TemplateLoader
 import java.io.File
+import java.net.URI
 
 internal data class FileRepositoryFolders(
     val adlFolder: File?,
@@ -102,6 +104,40 @@ internal data class FileRepositoryFolders(
     val testCaseFolder: File?,
     val testRunFolder: File?,
 )
+
+internal fun resolveAllowedCorsHosts(
+    allowedOrigins: String?,
+): Map<String, Set<String>> {
+    val configuredOrigins = allowedOrigins
+        ?.split(',')
+        ?.map(String::trim)
+        ?.filter(String::isNotBlank)
+        ?.takeIf { it.isNotEmpty() }
+        ?: listOf(
+            "http://localhost:9002",
+            "http://127.0.0.1:9002",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "https://localhost:9002",
+            "https://127.0.0.1:9002",
+            "https://localhost:3000",
+            "https://127.0.0.1:3000",
+        )
+
+    return configuredOrigins.mapNotNull { origin ->
+        runCatching {
+            val uri = URI(origin)
+            val scheme = uri.scheme?.takeIf { it.isNotBlank() } ?: return@runCatching null
+            val authority = uri.host?.let { host ->
+                if (uri.port == -1) host else "$host:${uri.port}"
+            } ?: uri.authority?.takeIf { it.isNotBlank() }
+            authority?.let { it to scheme }
+        }.getOrNull()
+    }.groupBy(
+        keySelector = { it.first },
+        valueTransform = { it.second },
+    ).mapValues { (_, schemes) -> schemes.toSet() }
+}
 
 internal fun resolveFileRepositoryFolders(
     adlFolderOverride: String?,
@@ -164,7 +200,8 @@ fun startServer(
         dataSource != null -> PostgresOrganizationRepository(dataSource)
         else -> InMemoryOrganizationRepository()
     }
-    val ownerAccessResolver = OwnerAccessResolver(organizationRepository)
+    val organizationSessionCookieManager = OrganizationSessionCookieManager(EnvConfig.organizationSessionSecret)
+    val ownerAccessResolver = OwnerAccessResolver(organizationRepository, organizationSessionCookieManager)
     val rolePromptRepository: RolePromptRepository = InMemoryRolePromptRepository()
     val agentRepository: AgentRepository = InMemoryAgentRepository()
     val mcpService = McpService()
@@ -254,7 +291,10 @@ fun startServer(
             allowHeader(ORGANIZATION_API_KEY_HEADER)
             allowHeader(LEGACY_ORGANIZATION_API_KEY_HEADER)
             allowHeader(ORGANIZATION_ID_HEADER)
-            anyHost()
+            allowCredentials = true
+            resolveAllowedCorsHosts(EnvConfig.allowedCorsOrigins).forEach { (host, schemes) ->
+                allowHost(host, schemes = schemes.toList())
+            }
         }
 
         install(GraphQL) {
@@ -326,6 +366,7 @@ fun startServer(
         install(SSE)
 
         routing {
+            organizationAccessSessions(organizationRepository, organizationSessionCookieManager)
             openAICompletions(assistantAgent, ownerAccessResolver)
             clientEvents(clientEventPublisher, ownerAccessResolver)
             graphiQLRoute()

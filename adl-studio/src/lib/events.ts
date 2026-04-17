@@ -44,6 +44,7 @@ class EventService {
     const accessState = readOrganizationAccess();
     this.eventSource = new EventSourcePolyfill(getEventsUrl(), {
       headers: buildOrganizationHeaders(accessState),
+      withCredentials: true,
     });
 
     this.eventSource.onmessage = (event) => {

@@ -7,8 +7,11 @@ package org.eclipse.lmos.adl.server
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO as ClientCIO
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.cookies.AcceptAllCookiesStorage
+import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.client.plugins.sse.SSE
 import io.ktor.client.request.accept
+import io.ktor.client.request.delete
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.prepareGet
@@ -51,6 +54,9 @@ class OrganizationAccessIntegrationTest {
                 requestTimeoutMillis = 5_000
                 connectTimeoutMillis = 5_000
                 socketTimeoutMillis = 5_000
+            }
+            install(HttpCookies) {
+                storage = AcceptAllCookiesStorage()
             }
             install(SSE)
         }
@@ -293,6 +299,74 @@ class OrganizationAccessIntegrationTest {
         }
     }
 
+    @Test
+    fun `organization session exchange authorizes graphql, rest and sse without api key header`() = runBlocking {
+        val createdApiKey = createOrganizationAndReturnApiKey("cookie-org")
+
+        val exchangeResponse = exchangeOrganizationSession(createdApiKey)
+        assertEquals(HttpStatusCode.OK, exchangeResponse.status)
+        assertTrue(
+            exchangeResponse.headers.getAll(HttpHeaders.SetCookie).orEmpty()
+                .any { it.contains("$ORGANIZATION_SESSION_COOKIE_NAME=") && it.contains("HttpOnly") },
+        )
+
+        val graphQlResponse = executeGraphQl(
+            query = "query { organizations { id } }",
+            headers = mapOf(ORGANIZATION_ID_HEADER to "cookie-org"),
+        )
+        val organizationIds = json.parseToJsonElement(graphQlResponse.bodyAsText())
+            .jsonObject["data"]!!.jsonObject["organizations"]!!.jsonArray
+            .map { it.jsonObject["id"]!!.jsonPrimitive.content }
+        assertEquals(listOf(DEFAULT_OWNER, "cookie-org"), organizationIds)
+
+        val restResponse = client.post("$baseUrl/v1/chat/completions") {
+            header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            header(ORGANIZATION_ID_HEADER, "cookie-org")
+            setBody("{invalid-json")
+        }
+        assertNotEquals(HttpStatusCode.Unauthorized, restResponse.status)
+        assertNotEquals(HttpStatusCode.Forbidden, restResponse.status)
+
+        client.prepareGet("$baseUrl/events") {
+            header(ORGANIZATION_ID_HEADER, "cookie-org")
+            accept(ContentType.Text.EventStream)
+        }.execute { response ->
+            assertEquals(HttpStatusCode.OK, response.status)
+        }
+    }
+
+    @Test
+    fun `public organization header bypasses authorized cookie session`() = runBlocking {
+        val createdApiKey = createOrganizationAndReturnApiKey("cookie-public")
+        exchangeOrganizationSession(createdApiKey)
+
+        val graphQlResponse = executeGraphQl(
+            query = "query { organizations { id } }",
+            headers = mapOf(ORGANIZATION_ID_HEADER to DEFAULT_OWNER),
+        )
+        val organizationIds = json.parseToJsonElement(graphQlResponse.bodyAsText())
+            .jsonObject["data"]!!.jsonObject["organizations"]!!.jsonArray
+            .map { it.jsonObject["id"]!!.jsonPrimitive.content }
+        assertEquals(listOf(DEFAULT_OWNER), organizationIds)
+    }
+
+    @Test
+    fun `clearing organization session cookie revokes cookie based access`() = runBlocking {
+        val createdApiKey = createOrganizationAndReturnApiKey("cookie-reset")
+        exchangeOrganizationSession(createdApiKey)
+
+        val deleteResponse = client.delete("$baseUrl/api/organization-access/session")
+        assertEquals(HttpStatusCode.NoContent, deleteResponse.status)
+
+        val graphQlResponse = executeGraphQl(
+            query = "query { organizations { id } }",
+            headers = mapOf(ORGANIZATION_ID_HEADER to "cookie-reset"),
+        )
+        val errorMessage = json.parseToJsonElement(graphQlResponse.bodyAsText())
+            .jsonObject["errors"]!!.jsonArray.first().jsonObject["message"]!!.jsonPrimitive.content
+        assertEquals("Missing organization API key.", errorMessage)
+    }
+
     private suspend fun createOrganizationAndReturnApiKey(organizationId: String): String {
         val response = executeGraphQl(
             query = "mutation { createOrganization(id: \"$organizationId\", name: \"$organizationId\", descriptions: \"Test organization\", initialApiKeyLabel: \"studio\") { createdApiKey } }",
@@ -322,6 +396,11 @@ class OrganizationAccessIntegrationTest {
         header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
         headers.forEach { (headerName, headerValue) -> header(headerName, headerValue) }
         setBody("""{"query": ${json.encodeToString(query)}}""")
+    }
+
+    private suspend fun exchangeOrganizationSession(apiKey: String) = client.post("$baseUrl/api/organization-access/session") {
+        header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+        setBody("""{"apiKey": ${json.encodeToString(apiKey)}}""")
     }
 
     private fun organizationHeaders(organizationId: String, apiKey: String): Map<String, String> = mapOf(

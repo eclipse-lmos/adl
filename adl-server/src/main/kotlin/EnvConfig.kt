@@ -3,12 +3,16 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.eclipse.lmos.adl.server
 
+import java.util.UUID
+
 /**
  * Configuration object that provides access to environment-based settings for the ARC server.
  * This object reads configuration values from environment variables and provides default values
  * when the environment variables are not set.
  */
 object EnvConfig {
+    private val generatedOrganizationSessionSecret = UUID.randomUUID().toString()
+
     /**
      * Indicates whether the server is running in development mode.
      *
@@ -112,6 +116,31 @@ object EnvConfig {
      * Default value: postgres
      */
     val databasePassword get() = System.getenv("DATABASE_PASSWORD") ?: "postgres"
+
+    /**
+     * Secret used to encrypt organization session cookies.
+     *
+     * Environment variable: ORGANIZATION_SESSION_SECRET
+     * Default value: process-local random secret (cookies become invalid after restart when unset)
+     */
+    val organizationSessionSecret get() = System.getenv("ORGANIZATION_SESSION_SECRET")?.takeIf { it.isNotBlank() }
+        ?: generatedOrganizationSessionSecret
+
+    /**
+     * Maximum lifetime of organization session cookies in seconds.
+     *
+     * Environment variable: ORGANIZATION_SESSION_MAX_AGE_SECONDS
+     * Default value: 604800 (7 days)
+     */
+    val organizationSessionMaxAgeSeconds get() = System.getenv("ORGANIZATION_SESSION_MAX_AGE_SECONDS")?.toLong() ?: 604_800L
+
+    /**
+     * Comma-separated list of allowed browser origins for credentialed CORS requests.
+     *
+     * Environment variable: ADL_ALLOWED_ORIGINS
+     * Default value: null (falls back to local studio development origins)
+     */
+    val allowedCorsOrigins get() = System.getenv("ADL_ALLOWED_ORIGINS")
 }
 
 /**
