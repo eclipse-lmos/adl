@@ -44,10 +44,12 @@ import org.eclipse.lmos.adl.server.agents.filters.Rephraser
 import org.eclipse.lmos.adl.server.agents.filters.SolutionCompliance
 import org.eclipse.lmos.adl.server.agents.filters.StaticResponseFeature
 import org.eclipse.lmos.adl.server.repositories.RolePromptRepository
+import org.eclipse.lmos.arc.agents.dsl.extensions.getCurrentUseCases
 import org.eclipse.lmos.arc.agents.dsl.extensions.memory
 import org.eclipse.lmos.arc.agents.dsl.extensions.system
 import org.eclipse.lmos.arc.agents.dsl.getOptional
 import org.eclipse.lmos.arc.api.AgentRequest
+import org.eclipse.lmos.arc.assistants.support.filters.ReturnUseCaseIdFilter
 import org.eclipse.lmos.arc.assistants.support.usecases.features.mustache
 
 
@@ -96,6 +98,11 @@ fun createAssistantAgent(
             +MustFeature()
             +SolutionCompliance(embeddingModel)
             +ConvertToWidget(widgetRepository)
+            if (system("debug", "false") == "true") {
+                getCurrentUseCases()?.currentUseCaseId?.let {
+                    outputMessage = outputMessage.update("<USE_CASE:$it>${message}")
+                }
+            }
             +UnresolvedDetector { "UNRESOLVED" }
         }
         prompt {

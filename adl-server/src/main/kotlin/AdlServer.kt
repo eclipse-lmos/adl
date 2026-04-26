@@ -206,6 +206,9 @@ fun startServer(
     val rolePromptRepository: RolePromptRepository = InMemoryRolePromptRepository()
     val agentRepository: AgentRepository = InMemoryAgentRepository()
     val mcpService = McpService()
+    System.getenv("MCP_SERVER")?.let { mcpServer ->
+        runBlocking { mcpService.setMcpServerUrls(listOf(mcpServer)) }
+    }
     val testCaseRepository = when {
         fileRepositoryFolders.testCaseFolder != null -> FileSystemTestCaseRepository(fileRepositoryFolders.testCaseFolder)
         else -> InMemoryTestCaseRepository()

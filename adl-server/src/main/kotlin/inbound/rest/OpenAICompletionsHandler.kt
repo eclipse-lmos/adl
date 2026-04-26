@@ -8,6 +8,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
+import io.ktor.http.Headers
 import io.ktor.util.toMap
 import kotlinx.serialization.json.Json
 import org.eclipse.lmos.adl.server.OwnerAccessResolver
@@ -23,10 +24,9 @@ import org.eclipse.lmos.arc.agents.conversation.AssistantMessage
 import org.eclipse.lmos.arc.agents.conversation.Conversation
 import org.eclipse.lmos.arc.agents.conversation.SystemMessage
 import org.eclipse.lmos.arc.agents.conversation.UserMessage
-import org.eclipse.lmos.arc.agents.dsl.beans
-import org.eclipse.lmos.arc.agents.dsl.getOptional
 import org.eclipse.lmos.arc.api.AgentRequest
 import org.eclipse.lmos.arc.api.ConversationContext
+import org.eclipse.lmos.arc.api.SystemContextEntry
 import org.eclipse.lmos.arc.core.Failure
 import org.eclipse.lmos.arc.core.Success
 import java.util.UUID
@@ -55,6 +55,7 @@ fun Route.openAICompletions(
 
                 val conversationId = call.request.headers["X-Conversation-Id"]?.takeIf { it.isNotBlank() }
                     ?: call.request.headers["X-Session-Id"]?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()
+                val systemContext = call.request.headers.toSystemContextEntries()
 
                 // Create initial conversation from messages
                 val initialConversation = Conversation(
@@ -66,7 +67,7 @@ fun Route.openAICompletions(
                     initialConversation, setOf(
                         AgentRequest(
                             messages = emptyList(),
-                            systemContext = listOf(),
+                            systemContext = systemContext,
                             conversationContext = ConversationContext(conversationId = conversationId)
                         )
                     )
@@ -103,3 +104,18 @@ fun Route.openAICompletions(
         }
     }
 }
+
+internal fun Headers.toSystemContextEntries(): List<SystemContextEntry> {
+    return toMap().asSequence()
+        .filter { (key, _) -> key.startsWith(prefix = "x-", ignoreCase = true) }
+        .flatMap { (key, values) ->
+            values.asSequence().map { value ->
+                SystemContextEntry(
+                    key = key.substring(2),
+                    value = value,
+                )
+            }
+        }
+        .toList()
+}
+

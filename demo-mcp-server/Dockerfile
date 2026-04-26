@@ -18,5 +18,5 @@ COPY README.md ./README.md
 
 EXPOSE 8088
 
-CMD ["python", "-m", "demo_mcp_server", "--transport", "streamable-http", "--host", "0.0.0.0", "--port", "8088"]
+CMD ["python", "-m", "demo_mcp_server", "--transport", "sse", "--host", "0.0.0.0", "--port", "8088"]
 

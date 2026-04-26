@@ -23,10 +23,10 @@ fun createEvalAgent(chatCompleterProvider: ChatCompleterProvider? = null): EvalA
         agent {
             name = "eval_agent"
 
-            output<EvalOutput>(
-                name = "Eval Output",
-                description = "Evaluation output for use case compliance",
-            )
+           // output<EvalOutput>(
+            //      name = "Eval Output",
+            //     description = "Evaluation output for use case compliance",
+            // )
 
             prompt {
                 """

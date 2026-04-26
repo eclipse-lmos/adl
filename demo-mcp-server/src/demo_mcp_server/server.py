@@ -33,6 +33,18 @@ def create_server(*, host: str = "127.0.0.1", port: int = 8000) -> FastMCP:
         """
 
     @server.tool(
+        name="get_web",
+        description="Returns the content of a web page as a string for a given URL."
+    )
+    def get_web(url: str) -> str:
+        return """
+            The current news on the website is:
+            - "AI is transforming the automotive industry with new innovations and partnerships."
+            - "Electric vehicles are gaining popularity as more consumers seek sustainable transportation options."
+            - "Several car manufacturers are investing heavily in autonomous driving technology."
+        """
+
+    @server.tool(
         name="get_car_deals",
         description="Return a formatted string with demo car deals."
     )

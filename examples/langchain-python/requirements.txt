@@ -5,3 +5,4 @@
 langchain
 langchain-openai
 python-dotenv
+urllib3<2
