@@ -13,13 +13,21 @@ load_dotenv()
 # Configuration for ADL Server
 ADL_SERVER_URL = os.getenv("ADL_SERVER_URL", "http://localhost:8080/v1")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "dummy-key")  # API key is required by the client but will be ignored by the server
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o")
+MODEL_NAME = os.getenv("MODEL_NAME", "default")
+
 
 def main():
     print(f"Connecting to ADL Server at {ADL_SERVER_URL}...")
 
     # Initialize the ChatOpenAI client pointing to the ADL Server, for example: http://localhost:8080/v1
-    chat = ChatOpenAI(base_url=ADL_SERVER_URL, api_key=OPENAI_API_KEY, model=MODEL_NAME,temperature=0.7)
+    chat = ChatOpenAI(base_url=ADL_SERVER_URL,
+                      api_key=OPENAI_API_KEY,
+                      model=MODEL_NAME,
+                      default_headers={
+                          "x-user_name": "Pat",
+                          "x-session-id": "837834-83748374ANC"
+                      }
+                      )
 
     # Create a simple message
     messages = [HumanMessage(content="Hello ADL")]

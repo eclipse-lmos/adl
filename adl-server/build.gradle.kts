@@ -163,6 +163,7 @@ dependencies {
     // Test dependencies
     testImplementation(libs.ktor.client.core)
     testImplementation(libs.ktor.client.cio.jvm)
+    testImplementation("io.ktor:ktor-server-test-host:3.4.0")
     testImplementation(libs.kotlinx.serialization.json)
     testImplementation("org.testcontainers:testcontainers:1.21.4")
     testImplementation("org.testcontainers:junit-jupiter:1.21.4")

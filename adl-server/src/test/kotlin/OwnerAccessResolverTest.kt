@@ -15,9 +15,14 @@ import org.junit.jupiter.api.Test
 
 class OwnerAccessResolverTest {
 
+    private fun resolver(repository: InMemoryOrganizationRepository): OwnerAccessResolver = OwnerAccessResolver(
+        organizationRepository = repository,
+        organizationSessionCookieManager = OrganizationSessionCookieManager(secret = "test-secret"),
+    )
+
     @Test
     fun `resolver falls back to public without organization headers`() = runBlocking {
-        val resolver = OwnerAccessResolver(InMemoryOrganizationRepository())
+        val resolver = resolver(InMemoryOrganizationRepository())
 
         val access = resolver.resolve(headersOf())
 
@@ -28,7 +33,7 @@ class OwnerAccessResolverTest {
     @Test
     fun `resolver returns unauthorized when protected organization has no api key`() = runBlocking {
         val repository = InMemoryOrganizationRepository()
-        val resolver = OwnerAccessResolver(repository)
+        val resolver = resolver(repository)
 
         val access = resolver.resolve(headersOf(ORGANIZATION_ID_HEADER, "telekom-demo"))
 
@@ -42,7 +47,7 @@ class OwnerAccessResolverTest {
     @Test
     fun `resolver returns forbidden for invalid api key`() = runBlocking {
         val repository = InMemoryOrganizationRepository()
-        val resolver = OwnerAccessResolver(repository)
+        val resolver = resolver(repository)
 
         val access = resolver.resolve(
             headersOf(
@@ -69,7 +74,7 @@ class OwnerAccessResolverTest {
                 initialApiKeyLabel = "studio",
             ),
         )
-        val resolver = OwnerAccessResolver(repository)
+        val resolver = resolver(repository)
 
         val access = resolver.resolve(
             headersOf(
@@ -93,7 +98,7 @@ class OwnerAccessResolverTest {
                 initialApiKeyLabel = "studio",
             ),
         )
-        val resolver = OwnerAccessResolver(repository)
+        val resolver = resolver(repository)
 
         val access = resolver.resolve(
             headersOf(

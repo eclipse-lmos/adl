@@ -7,11 +7,8 @@ package org.eclipse.lmos.adl.server.agents
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.eclipse.lmos.adl.server.inbound.mutation.EvalInput
-import org.eclipse.lmos.arc.agents.ConversationAgent
 import org.eclipse.lmos.arc.agents.agents
 import org.eclipse.lmos.arc.agents.llm.ChatCompleterProvider
-import org.eclipse.lmos.arc.agents.llm.ChatCompletionSettings
-import org.eclipse.lmos.arc.agents.llm.ReasoningEffort
 
 /**
  * Creates the agent that evaluates conversations.
@@ -26,10 +23,10 @@ fun createEvalAgent(chatCompleterProvider: ChatCompleterProvider? = null): EvalA
         agent {
             name = "eval_agent"
 
-            output<EvalOutput>(
-                name = "Eval Output",
-                description = "Evaluation output for use case compliance",
-            )
+           // output<EvalOutput>(
+            //      name = "Eval Output",
+            //     description = "Evaluation output for use case compliance",
+            // )
 
             prompt {
                 """

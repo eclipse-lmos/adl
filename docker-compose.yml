@@ -7,17 +7,21 @@ services:
     build:
       context: ./adl-server
     image: ghcr.io/eclipse-lmos/adl-server:latest
+    env_file: ".env"
     ports:
       - "8080:8080"
     volumes:
       - ./my-adls:/app/adls
     environment:
-      - ARC_AI_KEY=${OPENAI_API_KEY}
-      - ARC_MODEL=gpt-4o
+      - ARC_AI_KEY=${ARC_AI_KEY}
+      - ADL_FOLDER=/app/adls
+      - ARC_MODEL=gpt-4.1
       - ARC_CLIENT=openai
-      - DATABASE_URL=jdbc:postgresql://postgres:5432/adl
-      - DATABASE_USER=postgres
-      - DATABASE_PASSWORD=postgres
+      - MCP_SERVER=http://demo-mcp:8088/mcp
+      - ARC_AI_URL=${ARC_AI_URL}
+      # - DATABASE_URL=jdbc:postgresql://postgres:5432/adl
+      # - DATABASE_USER=postgres
+      # - DATABASE_PASSWORD=postgres
     depends_on:
       postgres:
         condition: service_healthy

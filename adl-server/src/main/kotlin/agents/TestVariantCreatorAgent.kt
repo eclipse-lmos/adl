@@ -16,10 +16,10 @@ fun createTestVariantCreatorAgent(chatCompleterProvider: ChatCompleterProvider? 
     agent {
         name = "test_variant_agent"
 
-        output<TestVariant>(
-            name = "Output",
-            description = "List of varied sentence variants",
-        )
+        //output<TestVariant>(
+        //    name = "Output",
+        //    description = "List of varied sentence variants",
+        // )
 
         prompt {
             """
