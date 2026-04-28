@@ -66,6 +66,7 @@ import org.eclipse.lmos.adl.server.repositories.RolePromptRepository
 import org.eclipse.lmos.adl.server.repositories.TestRunRepository
 import org.eclipse.lmos.adl.server.repositories.UseCaseEmbeddingsRepository
 import org.eclipse.lmos.adl.server.repositories.impl.FileSystemAdlRepository
+import org.eclipse.lmos.adl.server.repositories.impl.FileSystemAgentRepository
 import org.eclipse.lmos.adl.server.repositories.impl.InMemoryAdlRepository
 import org.eclipse.lmos.adl.server.repositories.impl.db.PostgresAdlRepository
 import com.zaxxer.hikari.HikariConfig
@@ -166,7 +167,10 @@ fun startServer(
     }
     val ownerAccessResolver = OwnerAccessResolver(organizationRepository)
     val rolePromptRepository: RolePromptRepository = InMemoryRolePromptRepository()
-    val agentRepository: AgentRepository = InMemoryAgentRepository()
+    val agentRepository: AgentRepository = when {
+        fileRepositoryFolders.adlFolder != null -> FileSystemAgentRepository(fileRepositoryFolders.adlFolder)
+        else -> InMemoryAgentRepository()
+    }
     val mcpService = McpService()
     val testCaseRepository = when {
         fileRepositoryFolders.testCaseFolder != null -> FileSystemTestCaseRepository(fileRepositoryFolders.testCaseFolder)

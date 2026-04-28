@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: CC0-1.0
 
 .gradle
+.env
 build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/

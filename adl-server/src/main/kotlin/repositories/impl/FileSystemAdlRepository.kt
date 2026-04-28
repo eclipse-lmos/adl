@@ -45,6 +45,7 @@ class FileSystemAdlRepository(private val folder: File) : AdlRepository {
 
     override suspend fun get(id: String): Adl? {
         val file = fileForId(id, currentOwner())
+        if (file.name.endsWith(AGENT_FILE_EXTENSION)) return null
         if (!file.exists()) return null
 
         return try {
@@ -78,7 +79,7 @@ class FileSystemAdlRepository(private val folder: File) : AdlRepository {
 
     override suspend fun list(): List<Adl> {
         val ownerFolder = folderForOwner(currentOwner())
-        return ownerFolder.listFiles { _, name -> name.endsWith(".md") }
+        return ownerFolder.listFiles { _, name -> name.endsWith(".md") && !name.endsWith(AGENT_FILE_EXTENSION) }
             ?.mapNotNull { file ->
                 val id = fileIdFrom(file, currentOwner())
                 get(id)
@@ -113,5 +114,9 @@ class FileSystemAdlRepository(private val folder: File) : AdlRepository {
 
     private fun fileIdFrom(file: File, owner: String): String {
         return if (owner == DEFAULT_OWNER) file.nameWithoutExtension else decodeId(file.nameWithoutExtension)
+    }
+
+    private companion object {
+        const val AGENT_FILE_EXTENSION = ".agent.md"
     }
 }
